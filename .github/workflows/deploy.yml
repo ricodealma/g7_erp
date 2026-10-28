@@ -1,0 +1,124 @@
+name: Deploy
+
+# Roda depois que o CI termina. O deploy automático por Git da Vercel está desligado
+# (vercel.json) para garantir a ordem: migrations -> deploy.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: read
+
+env:
+  VERCEL_CLI_VERSION: 65.5.0
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  config:
+    name: Verificar configuração
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      vercel: ${{ steps.check.outputs.vercel }}
+      database: ${{ steps.check.outputs.database }}
+    steps:
+      - id: check
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+        run: |
+          if [ -n "$VERCEL_TOKEN" ] && [ -n "$VERCEL_ORG_ID" ] && [ -n "$VERCEL_PROJECT_ID" ]; then
+            echo "vercel=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "vercel=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Deploy ignorado: cadastre VERCEL_TOKEN, VERCEL_ORG_ID e VERCEL_PROJECT_ID nos secrets do repositório."
+          fi
+          if [ -n "$DIRECT_URL" ]; then
+            echo "database=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "database=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  preview:
+    name: Preview
+    needs: config
+    if: needs.config.outputs.vercel == 'true' && github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    environment: preview
+    concurrency:
+      group: deploy-preview-${{ github.event.workflow_run.head_branch }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: npm install --global vercel@${{ env.VERCEL_CLI_VERSION }}
+
+      - run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+
+      - run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Publicar preview
+        run: |
+          url=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          echo "### Preview: $url" >> "$GITHUB_STEP_SUMMARY"
+
+  production:
+    name: Produção
+    needs: config
+    if: >-
+      needs.config.outputs.vercel == 'true' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - name: Exigir DIRECT_URL
+        if: needs.config.outputs.database != 'true'
+        run: |
+          echo "::error::Secret DIRECT_URL ausente: migrations de produção não podem ser aplicadas."
+          exit 1
+
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Aplicar migrations em produção
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+        run: pnpm db:deploy
+
+      - run: npm install --global vercel@${{ env.VERCEL_CLI_VERSION }}
+
+      - run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Publicar produção
+        run: |
+          url=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "### Produção: $url" >> "$GITHUB_STEP_SUMMARY"

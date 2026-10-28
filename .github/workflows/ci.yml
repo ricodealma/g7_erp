@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Lint, tipos, migrations e build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: g7_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d g7_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/g7_ci
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/g7_ci
+      CRON_SECRET: ci-placeholder-cron-secret
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Prisma — validar e checar formatação
+        run: |
+          pnpm prisma validate
+          pnpm prisma format --check
+
+      - run: pnpm lint
+
+      - run: pnpm typecheck
+
+      - name: Migrations — aplicar em banco efêmero
+        run: pnpm prisma migrate deploy
+
+      - name: Migrations — schema sem migration correspondente?
+        run: pnpm prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
+
+      - run: pnpm build
