@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 
 import { formatBRL } from "@/lib/money";
 import { connectPrinter } from "@/lib/printer/bluetooth";
@@ -12,29 +12,7 @@ import { createQuickSnackAction, restockAction, updateMenuItemAction } from "../
 import { usePrinter } from "./hooks";
 import { isLowStock } from "./new-order";
 import { Button, Dialog, Field, inputClass } from "@/components/ui";
-
-type Result = { ok: true } | { ok: false; error: string };
-
-function useAction() {
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const run = (task: () => Promise<Result>, onSuccess?: () => void) =>
-    startTransition(async () => {
-      setError(null);
-      const result = await task();
-      if (result.ok) onSuccess?.();
-      else setError(result.error);
-    });
-  return { pending, error, run };
-}
-
-function ErrorText({ error }: { error: string | null }) {
-  return error ? (
-    <p role="alert" className="text-sm text-red-600">
-      {error}
-    </p>
-  ) : null;
-}
+import { ErrorText, useAction } from "@/components/use-action";
 
 /** RF-05 / RF-09a: lanches do dia, esgotados e cadastro rápido. O operador só marca esgotados. */
 export function MenuDialog({

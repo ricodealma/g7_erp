@@ -5,6 +5,8 @@ export const env = createEnv({
   server: {
     DATABASE_URL: z.url(),
     CRON_SECRET: z.string().min(16),
+    /** Gestão de usuários no painel admin (Supabase Auth Admin API). Opcional: sem ela, a tela avisa. */
+    SUPABASE_SECRET_KEY: z.string().min(1).optional(),
   },
   client: {
     NEXT_PUBLIC_SUPABASE_URL: z.url(),

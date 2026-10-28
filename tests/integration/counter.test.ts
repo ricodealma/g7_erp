@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
-import { closeEvent, createQuickSnack, openEvent, restock, updateMenuItem } from "@/server/counter/catalog";
+import { closeEvent } from "@/server/admin/finance";
+import { createQuickSnack, openEvent, restock, updateMenuItem } from "@/server/counter/catalog";
 import { DomainError } from "@/server/counter/errors";
 import { cancelOrder, createOrder, getReceiptData, setOrderStatus } from "@/server/counter/orders";
 import { getCounterSnapshot } from "@/server/counter/queries";
@@ -181,10 +182,10 @@ describe("evento, cardápio e estoque", () => {
       paymentMethod: "PIX",
       lines: [{ productId: fx.refri.id, quantity: 1 }],
     });
-    await expect(closeEvent(db)).rejects.toThrow(/não entregue/);
+    await expect(closeEvent(db, { eventId: fx.event.id, countedCashCents: 0 })).rejects.toThrow(/não entregue/);
 
     await setOrderStatus(db, { orderId: id, status: "DELIVERED" });
-    await closeEvent(db);
+    await closeEvent(db, { eventId: fx.event.id, countedCashCents: 0 });
 
     await openEvent(db, { name: "Culto Seguinte", date: "2026-11-08", snackIds: [fx.pernil.id] });
     await expect(openEvent(db, { name: "Duplicado", date: "2026-11-08" })).rejects.toThrow(

@@ -130,7 +130,7 @@ O ERP é uma solução Web App de alta performance e baixo custo, focada em otim
 * **Operador:** geração de pedidos, alteração de status, cancelamento, reimpressão, marcação de "Esgotado" e entrada rápida de estoque. **Sem acesso** a dados financeiros consolidados nem a cadastros.
 * **Abertura/encerramento de evento e montagem do cardápio do dia** (incluir/remover lanches, cadastro rápido) são ações do **Admin**, por fazerem parte dos cadastros. Sem evento aberto, o operador vê o aviso para acionar o administrador.
 * Usuário autenticado no Supabase sem perfil ativo no banco não acessa o sistema (desativar = `active = false`).
-* Criação de usuários enquanto o painel administrativo não existe: script `pnpm user:create` (usa a chave secreta do Supabase, somente local/CI).
+* O primeiro administrador é criado pelo script `pnpm user:create`; os demais, no painel administrativo (RF-16). A criação e a redefinição de senha usam a chave secreta do Supabase, somente no servidor; a senha é gerada e exibida uma única vez ao admin.
 * A cozinha **não** utiliza o sistema; trabalha com a comanda impressa.
 
 
@@ -138,6 +138,12 @@ O ERP é uma solução Web App de alta performance e baixo custo, focada em otim
 * **Cadastros:** produtos (lanches e bebidas, preço, tipo de controle de estoque, limite crítico), combos (preço fixo e itens permitidos), eventos, usuários e configurações (chave Pix, nome no cabeçalho do cupom).
 * **Dados financeiros:** vendas por evento, por forma de pagamento e por produto; lista de **pagamentos pendentes (fiado)** com quitação.
 * **Fechamento de caixa por evento:** total vendido por forma de pagamento, total de fiado em aberto, valor esperado em dinheiro × valor contado (com registro da diferença) e encerramento do evento.
+* **Regras adotadas na implementação:**
+  * Dinheiro esperado = vendas em dinheiro do evento + fiado quitado **em dinheiro durante o evento** (a quitação entra no caixa do evento aberto no momento; sem evento aberto, fica fora de qualquer caixa). O valor esperado é congelado no encerramento.
+  * O encerramento exige todos os pedidos entregues ou cancelados.
+  * Contagem de inventário: o admin informa o saldo real e a diferença é registrada como movimentação de ajuste.
+  * Produtos e combos não são excluídos, apenas desativados (preservam o histórico de vendas).
+  * O admin não pode remover o próprio acesso de administrador.
 
 ---
 

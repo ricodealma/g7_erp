@@ -22,6 +22,19 @@ describe("permissões por perfil (RF-15)", () => {
     expect(can("OPERATOR", "menu.edit")).toBe(false);
   });
 
+  it("operador não acessa o painel administrativo", () => {
+    for (const permission of [
+      "finance.view",
+      "finance.settle",
+      "catalog.manage",
+      "users.manage",
+      "settings.manage",
+    ] as const) {
+      expect(can("OPERATOR", permission)).toBe(false);
+      expect(can("ADMIN", permission)).toBe(true);
+    }
+  });
+
   it("administrador pode tudo", () => {
     for (const permission of ["order.create", "menu.edit", "event.open", "event.close"] as const) {
       expect(can("ADMIN", permission)).toBe(true);

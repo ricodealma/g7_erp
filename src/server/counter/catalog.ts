@@ -38,21 +38,6 @@ export async function openEvent(db: PrismaClient, rawInput: OpenEventInput) {
   }
 }
 
-/** Encerra o evento aberto. O fechamento de caixa completo fica no painel administrativo. */
-export async function closeEvent(db: PrismaClient, closedById?: string) {
-  const event = await requireOpenEvent(db);
-  const openOrders = await db.order.count({
-    where: { eventId: event.id, status: { in: ["AWAITING_CONFIRMATION", "PENDING", "READY"] } },
-  });
-  if (openOrders > 0) {
-    throw new DomainError(`Há ${openOrders} pedido(s) não entregue(s). Entregue ou cancele antes de encerrar.`);
-  }
-  await db.event.update({
-    where: { id: event.id },
-    data: { status: "CLOSED", closedAt: new Date(), closedById },
-  });
-}
-
 /** Inclui/remove um lanche do cardápio do dia ou marca como esgotado (RF-05, RF-09a). */
 export async function updateMenuItem(
   db: PrismaClient,

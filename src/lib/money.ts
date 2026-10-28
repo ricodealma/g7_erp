@@ -16,3 +16,11 @@ export function toCents(value: { toString(): string } | string | number): Cents 
 export function fromCents(cents: Cents): string {
   return (cents / 100).toFixed(2);
 }
+
+/** Lê um valor digitado ("7,50", "R$ 1.234,56", "10.5") em centavos; null se inválido. */
+export function parseCents(input: string): Cents | null {
+  let text = input.replace(/R\$|\s/g, "");
+  if (text.includes(",")) text = text.replace(/\./g, "").replace(",", ".");
+  if (!/^\d+(\.\d{1,2})?$/.test(text)) return null;
+  return Math.round(Number(text) * 100);
+}

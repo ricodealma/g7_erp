@@ -46,3 +46,10 @@ export async function requireViewer(): Promise<Viewer> {
   if (!viewer) redirect("/auth/sign-out?motivo=sem-acesso");
   return viewer;
 }
+
+/** Para páginas do painel administrativo: operador volta ao balcão. */
+export async function requireAdmin(): Promise<Viewer> {
+  const viewer = await requireViewer();
+  if (!can(viewer.role, "finance.view")) redirect("/");
+  return viewer;
+}

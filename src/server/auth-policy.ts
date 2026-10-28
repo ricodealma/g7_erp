@@ -14,6 +14,12 @@ const PERMISSIONS = {
   "menu.edit": ["ADMIN"],
   "event.open": ["ADMIN"],
   "event.close": ["ADMIN"],
+  // Painel administrativo (RF-16)
+  "finance.view": ["ADMIN"],
+  "finance.settle": ["ADMIN"],
+  "catalog.manage": ["ADMIN"],
+  "users.manage": ["ADMIN"],
+  "settings.manage": ["ADMIN"],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Permission = keyof typeof PERMISSIONS;

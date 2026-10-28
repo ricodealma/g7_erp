@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 
 import { formatBRL } from "@/lib/money";
@@ -70,6 +71,9 @@ export function OpenEvent({ snacks }: { snacks: CounterProduct[] }) {
       >
         {pending ? "Abrindo…" : "Abrir evento"}
       </Button>
+      <Link href="/admin" className="text-center text-sm underline opacity-70">
+        Ir para o painel administrativo
+      </Link>
     </main>
   );
 }

@@ -5,12 +5,14 @@ import {
   Bluetooth,
   BluetoothConnected,
   ClipboardList,
+  LayoutDashboard,
   LogOut,
   Package,
   UtensilsCrossed,
   WifiOff,
 } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui";
 import {
@@ -24,12 +26,14 @@ import type { ReceiptData } from "@/lib/receipt";
 import type { CounterSnapshot } from "@/server/counter/queries";
 
 import { signOutAction } from "../../login/actions";
-import { closeEventAction } from "../actions";
 import { MenuDialog, ReceiptDialog, StockDialog } from "./dialogs";
 import { useOnline, usePrinter } from "./hooks";
 import { isLowStock, NewOrder } from "./new-order";
 import { OpenEvent } from "./open-event";
 import { OrdersList } from "./orders-list";
+
+const linkClass =
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 font-medium text-zinc-700 hover:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-zinc-800";
 
 export type CounterViewer = {
   name: string;
@@ -101,7 +105,6 @@ export function CounterApp({ snapshot, viewer }: { snapshot: CounterSnapshot; vi
     message: string;
     error?: boolean;
   } | null>(null);
-  const [closing, startClosing] = useTransition();
 
   useEffect(() => {
     void reconnectPrinter();
@@ -169,19 +172,14 @@ export function CounterApp({ snapshot, viewer }: { snapshot: CounterSnapshot; vi
           {lowStock.length > 0 && <span className="font-bold">{lowStock.length}</span>}
         </Button>
         {viewer.canManageEvent && (
-          <Button
-            variant="ghost"
-            disabled={closing}
-            onClick={() => {
-              if (!window.confirm(`Encerrar o evento "${snapshot.event!.name}"?`)) return;
-              startClosing(async () => {
-                const result = await closeEventAction();
-                if (!result.ok) setToast({ message: result.error, error: true });
-              });
-            }}
-          >
-            Encerrar
-          </Button>
+          <>
+            <Link href={`/admin/eventos/${snapshot.event.id}`} className={linkClass}>
+              Fechar caixa
+            </Link>
+            <Link href="/admin" className={linkClass} aria-label="Painel administrativo">
+              <LayoutDashboard size={18} /> <span className="hidden sm:inline">Admin</span>
+            </Link>
+          </>
         )}
         <UserMenu viewer={viewer} />
       </header>

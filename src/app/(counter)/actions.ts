@@ -1,32 +1,16 @@
 "use server";
 
-import { refresh } from "next/cache";
 import { z } from "zod";
 
 import type { ReceiptData } from "@/lib/receipt";
+import { run, type ActionResult } from "@/server/action-result";
 import { authorize } from "@/server/auth";
-import { closeEvent, createQuickSnack, openEvent, restock, updateMenuItem } from "@/server/counter/catalog";
-import { DomainError } from "@/server/counter/errors";
+import { createQuickSnack, openEvent, restock, updateMenuItem } from "@/server/counter/catalog";
 import { cancelOrder, createOrder, getReceiptData, setOrderStatus } from "@/server/counter/orders";
 import type { CreateOrderInput, OpenEventInput, QuickSnackInput } from "@/server/counter/schemas";
 import { db } from "@/server/db";
 
 // Toda action valida sessão e permissão (RF-15): Server Actions são endpoints POST públicos.
-
-export type ActionResult<T = void> = { ok: true; data: T } | { ok: false; error: string };
-
-async function run<T>(task: () => Promise<T>, { mutates = true } = {}): Promise<ActionResult<T>> {
-  try {
-    const data = await task();
-    if (mutates) refresh();
-    return { ok: true, data };
-  } catch (error) {
-    if (error instanceof DomainError) return { ok: false, error: error.message };
-    if (error instanceof z.ZodError) return { ok: false, error: error.issues[0]?.message ?? "Dados inválidos." };
-    console.error(error);
-    return { ok: false, error: "Erro inesperado. Tente novamente." };
-  }
-}
 
 export async function createOrderAction(
   input: CreateOrderInput,
@@ -66,13 +50,6 @@ export async function openEventAction(input: OpenEventInput) {
   return run(async () => {
     await authorize("event.open");
     await openEvent(db, input);
-  });
-}
-
-export async function closeEventAction() {
-  return run(async () => {
-    const viewer = await authorize("event.close");
-    await closeEvent(db, viewer.id);
   });
 }
 

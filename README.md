@@ -22,11 +22,20 @@ pnpm dev
 
 ## Autenticação e perfis
 
-- Login por e-mail e senha no **Supabase Auth**; não existe cadastro público (desligado em `supabase/config.toml` e deve ser desligado no painel do Supabase em produção: *Authentication → Sign In / Providers → Allow new users to sign up*).
+- Login por e-mail e senha no **Supabase Auth**; não existe cadastro público (desligado em `supabase/config.toml` e deve ser desligado no painel do Supabase em produção: _Authentication → Sign In / Providers → Allow new users to sign up_).
 - Cada usuário precisa de um **perfil ativo** na tabela `profiles` (`ADMIN` ou `OPERATOR`). Login sem perfil ativo é recusado.
-- Usuários são criados com `pnpm user:create` (usa `SUPABASE_SECRET_KEY`; sem `--password`, gera uma senha e a exibe uma vez). Para desativar alguém: `active = false` no perfil.
+- O **primeiro administrador** é criado com `pnpm user:create` (sem `--password`, gera uma senha e a exibe uma vez). Os demais usuários são criados no painel (`/admin/usuarios`), que também altera perfil, desativa acesso e redefine senhas.
+- Criar usuários e redefinir senhas usa a Admin API do Supabase com `SUPABASE_SECRET_KEY`, **somente no servidor**. Sem ela, a tela de usuários avisa e só permite editar nome, perfil e acesso.
 - `src/proxy.ts` renova a sessão e redireciona quem não está logado; a autorização real fica em `src/server/auth.ts`, chamada por **toda** Server Action.
-- Permissões em `src/server/auth-policy.ts`: o operador cria pedidos, muda status, cancela, reimprime, marca esgotado e dá entrada de estoque; abrir/encerrar evento e montar o cardápio são do administrador.
+- Permissões em `src/server/auth-policy.ts`: o operador cria pedidos, muda status, cancela, reimprime, marca esgotado e dá entrada de estoque; abrir/encerrar evento, montar o cardápio e todo o painel administrativo são do administrador.
+
+## Painel administrativo (`/admin`)
+
+- **Financeiro:** eventos com total vendido e diferença de caixa; relatório por evento (forma de pagamento, itens, unidades por produto incluindo itens de combos).
+- **Fechamento de caixa:** dinheiro esperado = vendas em dinheiro + fiado quitado em dinheiro durante o evento. O admin informa o valor contado; esperado, contado e observações ficam registrados e o evento é encerrado.
+- **Fiado:** lista de pedidos "pagar depois" em aberto; a quitação (Pix ou dinheiro) entra no caixa do evento aberto naquele momento.
+- **Produtos e combos:** cadastro, preço, tipo de controle de estoque, limite crítico e ativação. A contagem de inventário define o saldo real e registra a diferença como `ADJUSTMENT`.
+- **Usuários** e **Configurações** (chave Pix, recebedor, cidade e cabeçalho do cupom).
 
 ## Testes
 
@@ -39,9 +48,9 @@ O banco de integração vem de `TEST_DATABASE_URL` (padrão `localhost:5433/g7_e
 
 ## Banco de dados e migrations
 
-| Variável       | Uso                                                        |
-| -------------- | ---------------------------------------------------------- |
-| `DATABASE_URL` | Runtime da aplicação — Supavisor modo transação (`:6543`)  |
+| Variável       | Uso                                                            |
+| -------------- | -------------------------------------------------------------- |
+| `DATABASE_URL` | Runtime da aplicação — Supavisor modo transação (`:6543`)      |
 | `DIRECT_URL`   | CLI do Prisma (migrate/seed) — Supavisor modo sessão (`:5432`) |
 
 - Nova alteração de schema: edite `prisma/schema.prisma` e rode `pnpm db:migrate --name <descricao>`.
@@ -59,8 +68,8 @@ O banco de integração vem de `TEST_DATABASE_URL` (padrão `localhost:5433/g7_e
 ### Configurar a Vercel
 
 1. Crie o projeto na Vercel e vincule localmente: `pnpm dlx vercel link` (gera `.vercel/project.json` com `orgId` e `projectId`).
-2. Cadastre na Vercel (Production e Preview): `DATABASE_URL`, `DIRECT_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `CRON_SECRET`.
-3. Crie um token em *Vercel → Account Settings → Tokens* e cadastre os secrets no GitHub.
+2. Cadastre na Vercel (Production e Preview): `DATABASE_URL`, `DIRECT_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `CRON_SECRET` e, para a tela de usuários, `SUPABASE_SECRET_KEY` (variável sensível, sem prefixo `NEXT_PUBLIC_`).
+3. Crie um token em _Vercel → Account Settings → Tokens_ e cadastre os secrets no GitHub.
 
 ## Keep-alive do Supabase
 
