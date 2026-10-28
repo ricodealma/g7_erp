@@ -11,7 +11,7 @@ import type { CounterProduct } from "@/server/counter/queries";
 import { createQuickSnackAction, restockAction, updateMenuItemAction } from "../actions";
 import { usePrinter } from "./hooks";
 import { isLowStock } from "./new-order";
-import { Button, Dialog, Field, inputClass } from "./ui";
+import { Button, Dialog, Field, inputClass } from "@/components/ui";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -36,14 +36,24 @@ function ErrorText({ error }: { error: string | null }) {
   ) : null;
 }
 
-/** RF-05 / RF-09a: lanches do dia, esgotados e cadastro rápido. */
-export function MenuDialog({ open, onClose, products }: { open: boolean; onClose: () => void; products: CounterProduct[] }) {
+/** RF-05 / RF-09a: lanches do dia, esgotados e cadastro rápido. O operador só marca esgotados. */
+export function MenuDialog({
+  open,
+  onClose,
+  products,
+  canEdit,
+}: {
+  open: boolean;
+  onClose: () => void;
+  products: CounterProduct[];
+  canEdit: boolean;
+}) {
   const { pending, error, run } = useAction();
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [countable, setCountable] = useState(false);
   const [quantity, setQuantity] = useState("");
-  const snacks = products.filter((product) => product.category === "SNACK");
+  const snacks = products.filter((product) => product.category === "SNACK" && (canEdit || product.inMenu));
 
   function createSnack() {
     const priceCents = Math.round(Number(price.replace(",", ".")) * 100);
@@ -75,13 +85,21 @@ export function MenuDialog({ open, onClose, products }: { open: boolean; onClose
                   type="checkbox"
                   className="size-5 accent-amber-500"
                   checked={product.inMenu}
-                  disabled={pending}
-                  onChange={(event) => run(() => updateMenuItemAction({ productId: product.id, inMenu: event.target.checked }))}
+                  disabled={pending || !canEdit}
+                  onChange={(event) =>
+                    run(() =>
+                      updateMenuItemAction({
+                        productId: product.id,
+                        inMenu: event.target.checked,
+                      }),
+                    )
+                  }
                 />
                 <span>
                   <span className="font-medium">{product.name}</span>
                   <span className="block text-xs opacity-60">
-                    {formatBRL(product.priceCents)} · {product.countable ? `${product.stockQuantity} un` : "sem contagem"}
+                    {formatBRL(product.priceCents)} ·{" "}
+                    {product.countable ? `${product.stockQuantity} un` : "sem contagem"}
                   </span>
                 </span>
               </label>
@@ -89,7 +107,14 @@ export function MenuDialog({ open, onClose, products }: { open: boolean; onClose
                 <Button
                   variant={product.soldOut ? "danger" : "secondary"}
                   disabled={pending}
-                  onClick={() => run(() => updateMenuItemAction({ productId: product.id, soldOut: !product.soldOut }))}
+                  onClick={() =>
+                    run(() =>
+                      updateMenuItemAction({
+                        productId: product.id,
+                        soldOut: !product.soldOut,
+                      }),
+                    )
+                  }
                 >
                   {product.soldOut ? "Esgotado" : "Marcar esgotado"}
                 </Button>
@@ -98,29 +123,51 @@ export function MenuDialog({ open, onClose, products }: { open: boolean; onClose
           ))}
         </ul>
 
-        <fieldset className="flex flex-col gap-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-          <legend className="px-1 text-sm font-semibold">Novo lanche</legend>
-          <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
-            <Field label="Nome">
-              <input className={inputClass} value={name} onChange={(event) => setName(event.target.value)} maxLength={80} />
-            </Field>
-            <Field label="Preço (R$)">
-              <input className={inputClass} inputMode="decimal" value={price} onChange={(event) => setPrice(event.target.value)} />
-            </Field>
-          </div>
-          <label className="flex min-h-11 items-center gap-2 text-sm">
-            <input type="checkbox" className="size-5 accent-amber-500" checked={countable} onChange={(event) => setCountable(event.target.checked)} />
-            Controlar quantidade (rendimento conhecido)
-          </label>
-          {countable && (
-            <Field label="Quantidade disponível">
-              <input className={inputClass} inputMode="numeric" value={quantity} onChange={(event) => setQuantity(event.target.value.replace(/\D/g, ""))} />
-            </Field>
-          )}
-          <Button variant="primary" disabled={pending || !name.trim() || !price} onClick={createSnack}>
-            Adicionar ao cardápio
-          </Button>
-        </fieldset>
+        {canEdit && (
+          <fieldset className="flex flex-col gap-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+            <legend className="px-1 text-sm font-semibold">Novo lanche</legend>
+            <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
+              <Field label="Nome">
+                <input
+                  className={inputClass}
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  maxLength={80}
+                />
+              </Field>
+              <Field label="Preço (R$)">
+                <input
+                  className={inputClass}
+                  inputMode="decimal"
+                  value={price}
+                  onChange={(event) => setPrice(event.target.value)}
+                />
+              </Field>
+            </div>
+            <label className="flex min-h-11 items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="size-5 accent-amber-500"
+                checked={countable}
+                onChange={(event) => setCountable(event.target.checked)}
+              />
+              Controlar quantidade (rendimento conhecido)
+            </label>
+            {countable && (
+              <Field label="Quantidade disponível">
+                <input
+                  className={inputClass}
+                  inputMode="numeric"
+                  value={quantity}
+                  onChange={(event) => setQuantity(event.target.value.replace(/\D/g, ""))}
+                />
+              </Field>
+            )}
+            <Button variant="primary" disabled={pending || !name.trim() || !price} onClick={createSnack}>
+              Adicionar ao cardápio
+            </Button>
+          </fieldset>
+        )}
         <ErrorText error={error} />
       </div>
     </Dialog>
@@ -128,7 +175,15 @@ export function MenuDialog({ open, onClose, products }: { open: boolean; onClose
 }
 
 /** RF-10 / RF-11: saldos, alertas e entrada rápida. */
-export function StockDialog({ open, onClose, products }: { open: boolean; onClose: () => void; products: CounterProduct[] }) {
+export function StockDialog({
+  open,
+  onClose,
+  products,
+}: {
+  open: boolean;
+  onClose: () => void;
+  products: CounterProduct[];
+}) {
   const { pending, error, run } = useAction();
   const [custom, setCustom] = useState<Record<string, string>>({});
   const countable = products.filter((product) => product.countable);
@@ -140,7 +195,9 @@ export function StockDialog({ open, onClose, products }: { open: boolean; onClos
           <li key={product.id} className="flex flex-col gap-2 py-3">
             <div className="flex items-center justify-between">
               <span className="font-medium">{product.name}</span>
-              <span className={`rounded-md px-2 text-sm font-semibold tabular-nums ${isLowStock(product) ? "bg-red-600 text-white" : ""}`}>
+              <span
+                className={`rounded-md px-2 text-sm font-semibold tabular-nums ${isLowStock(product) ? "bg-red-600 text-white" : ""}`}
+              >
                 {product.stockQuantity} un
               </span>
             </div>
@@ -155,7 +212,12 @@ export function StockDialog({ open, onClose, products }: { open: boolean; onClos
                 inputMode="numeric"
                 placeholder="Qtd"
                 value={custom[product.id] ?? ""}
-                onChange={(event) => setCustom({ ...custom, [product.id]: event.target.value.replace(/\D/g, "") })}
+                onChange={(event) =>
+                  setCustom({
+                    ...custom,
+                    [product.id]: event.target.value.replace(/\D/g, ""),
+                  })
+                }
                 aria-label={`Quantidade para ${product.name}`}
               />
               <Button
@@ -196,13 +258,19 @@ export function ReceiptDialog({ receipt, onClose }: { receipt: ReceiptData | nul
   }
 
   return (
-    <Dialog open={receipt !== null} onClose={onClose} title={receipt ? `Pedido #${String(receipt.number).padStart(3, "0")}` : "Cupom"}>
+    <Dialog
+      open={receipt !== null}
+      onClose={onClose}
+      title={receipt ? `Pedido #${String(receipt.number).padStart(3, "0")}` : "Cupom"}
+    >
       {receipt && (
         <div className="flex flex-col gap-4">
           <pre className="overflow-x-auto rounded-xl bg-zinc-100 p-3 font-mono text-[11px] leading-snug text-zinc-900">
             {receiptToText(buildReceipt(receipt))}
           </pre>
-          <p className="text-sm opacity-70">Impressora Bluetooth {printer.status === "unsupported" ? "não suportada neste navegador" : "desconectada"}.</p>
+          <p className="text-sm opacity-70">
+            Impressora Bluetooth {printer.status === "unsupported" ? "não suportada neste navegador" : "desconectada"}.
+          </p>
           <div className="grid gap-2 sm:grid-cols-2">
             {printer.status !== "unsupported" && (
               <Button variant="primary" onClick={connectAndPrint}>

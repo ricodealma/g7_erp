@@ -15,7 +15,11 @@ function subscribeOnline(callback: () => void) {
 
 /** RNF-06: o sistema é somente online. */
 export function useOnline() {
-  return useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true);
+  return useSyncExternalStore(
+    subscribeOnline,
+    () => navigator.onLine,
+    () => true,
+  );
 }
 
 export function usePrinter() {

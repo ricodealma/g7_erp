@@ -12,11 +12,21 @@ Pré-requisitos: Node.js 22+, pnpm, Docker.
 pnpm install
 cp .env.example .env      # ajuste os valores
 pnpm db:up                # PostgreSQL local (porta 5433)
+pnpm supabase:start       # Supabase Auth local (porta 54321); copie as chaves para o .env
 pnpm db:migrate           # aplica migrations
 pnpm db:generate          # gera o Prisma Client (não é automático no Prisma 7)
 pnpm db:seed              # dados iniciais (idempotente)
+pnpm user:create --email admin@exemplo.com --name "Admin" --role ADMIN
 pnpm dev
 ```
+
+## Autenticação e perfis
+
+- Login por e-mail e senha no **Supabase Auth**; não existe cadastro público (desligado em `supabase/config.toml` e deve ser desligado no painel do Supabase em produção: *Authentication → Sign In / Providers → Allow new users to sign up*).
+- Cada usuário precisa de um **perfil ativo** na tabela `profiles` (`ADMIN` ou `OPERATOR`). Login sem perfil ativo é recusado.
+- Usuários são criados com `pnpm user:create` (usa `SUPABASE_SECRET_KEY`; sem `--password`, gera uma senha e a exibe uma vez). Para desativar alguém: `active = false` no perfil.
+- `src/proxy.ts` renova a sessão e redireciona quem não está logado; a autorização real fica em `src/server/auth.ts`, chamada por **toda** Server Action.
+- Permissões em `src/server/auth-policy.ts`: o operador cria pedidos, muda status, cancela, reimprime, marca esgotado e dá entrada de estoque; abrir/encerrar evento e montar o cardápio são do administrador.
 
 ## Testes
 

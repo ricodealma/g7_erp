@@ -20,13 +20,55 @@ type SeedProduct = {
 };
 
 const products: SeedProduct[] = [
-  { name: "Pitchulinha", category: "DRINK", price: "3.00", stockControl: "COUNTABLE", stockQuantity: 0, lowStockThreshold: 6 },
-  { name: "Refri Lata", category: "DRINK", price: "5.00", stockControl: "COUNTABLE", stockQuantity: 0, lowStockThreshold: 6 },
+  {
+    name: "Pitchulinha",
+    category: "DRINK",
+    price: "3.00",
+    stockControl: "COUNTABLE",
+    stockQuantity: 0,
+    lowStockThreshold: 6,
+  },
+  {
+    name: "Refri Lata",
+    category: "DRINK",
+    price: "5.00",
+    stockControl: "COUNTABLE",
+    stockQuantity: 0,
+    lowStockThreshold: 6,
+  },
   { name: "Suco", category: "DRINK", price: "4.00", stockControl: "COUNTABLE", stockQuantity: 0, lowStockThreshold: 6 },
-  { name: "Água com gás", category: "DRINK", price: "4.00", stockControl: "COUNTABLE", stockQuantity: 0, lowStockThreshold: 6 },
-  { name: "Pizza de Calabresa", category: "SNACK", price: "7.50", stockControl: "COUNTABLE", stockQuantity: 0, lowStockThreshold: 3 },
-  { name: "Pão com Pernil", category: "SNACK", price: "7.00", stockControl: "UNCOUNTABLE", stockQuantity: null, lowStockThreshold: null },
-  { name: "Pastel de Frango", category: "SNACK", price: "7.00", stockControl: "UNCOUNTABLE", stockQuantity: null, lowStockThreshold: null },
+  {
+    name: "Água com gás",
+    category: "DRINK",
+    price: "4.00",
+    stockControl: "COUNTABLE",
+    stockQuantity: 0,
+    lowStockThreshold: 6,
+  },
+  {
+    name: "Pizza de Calabresa",
+    category: "SNACK",
+    price: "7.50",
+    stockControl: "COUNTABLE",
+    stockQuantity: 0,
+    lowStockThreshold: 3,
+  },
+  {
+    name: "Pão com Pernil",
+    category: "SNACK",
+    price: "7.00",
+    stockControl: "UNCOUNTABLE",
+    stockQuantity: null,
+    lowStockThreshold: null,
+  },
+  {
+    name: "Pastel de Frango",
+    category: "SNACK",
+    price: "7.00",
+    stockControl: "UNCOUNTABLE",
+    stockQuantity: null,
+    lowStockThreshold: null,
+  },
 ];
 
 async function main() {
@@ -44,9 +86,7 @@ async function main() {
 
   // Upsert por nome sem sobrescrever preço/estoque já ajustados pelo admin.
   const seeded = await Promise.all(
-    products.map((product) =>
-      db.product.upsert({ where: { name: product.name }, update: {}, create: product }),
-    ),
+    products.map((product) => db.product.upsert({ where: { name: product.name }, update: {}, create: product })),
   );
 
   const combo = await db.combo.upsert({

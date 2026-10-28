@@ -4,26 +4,21 @@ import { refresh } from "next/cache";
 import { z } from "zod";
 
 import type { ReceiptData } from "@/lib/receipt";
-import {
-  closeEvent,
-  createQuickSnack,
-  openEvent,
-  restock,
-  updateMenuItem,
-} from "@/server/counter/catalog";
+import { authorize } from "@/server/auth";
+import { closeEvent, createQuickSnack, openEvent, restock, updateMenuItem } from "@/server/counter/catalog";
 import { DomainError } from "@/server/counter/errors";
 import { cancelOrder, createOrder, getReceiptData, setOrderStatus } from "@/server/counter/orders";
 import type { CreateOrderInput, OpenEventInput, QuickSnackInput } from "@/server/counter/schemas";
 import { db } from "@/server/db";
 
-// TODO(auth): validar sessão e perfil (RF-15) em cada action quando o Supabase Auth entrar.
+// Toda action valida sessão e permissão (RF-15): Server Actions são endpoints POST públicos.
 
 export type ActionResult<T = void> = { ok: true; data: T } | { ok: false; error: string };
 
-async function run<T>(task: () => Promise<T>): Promise<ActionResult<T>> {
+async function run<T>(task: () => Promise<T>, { mutates = true } = {}): Promise<ActionResult<T>> {
   try {
     const data = await task();
-    refresh();
+    if (mutates) refresh();
     return { ok: true, data };
   } catch (error) {
     if (error instanceof DomainError) return { ok: false, error: error.message };
@@ -37,49 +32,68 @@ export async function createOrderAction(
   input: CreateOrderInput,
 ): Promise<ActionResult<{ id: string; number: number; receipt: ReceiptData }>> {
   return run(async () => {
-    const order = await createOrder(db, input);
+    const viewer = await authorize("order.create");
+    const order = await createOrder(db, input, viewer.id);
     return { ...order, receipt: await getReceiptData(db, order.id) };
   });
 }
 
 export async function setOrderStatusAction(orderId: string, status: "PENDING" | "READY" | "DELIVERED") {
-  return run(() => setOrderStatus(db, { orderId, status }));
+  return run(async () => {
+    await authorize("order.status");
+    await setOrderStatus(db, { orderId, status });
+  });
 }
 
 export async function cancelOrderAction(orderId: string) {
-  return run(() => cancelOrder(db, z.uuid().parse(orderId)));
+  return run(async () => {
+    const viewer = await authorize("order.cancel");
+    await cancelOrder(db, z.uuid().parse(orderId), viewer.id);
+  });
 }
 
-export async function getReceiptAction(orderId: string): Promise<ActionResult<ReceiptData>> {
-  try {
-    return { ok: true, data: await getReceiptData(db, z.uuid().parse(orderId)) };
-  } catch (error) {
-    if (error instanceof DomainError) return { ok: false, error: error.message };
-    console.error(error);
-    return { ok: false, error: "Não foi possível carregar o cupom." };
-  }
+export async function getReceiptAction(orderId: string) {
+  return run(
+    async () => {
+      await authorize("order.reprint");
+      return getReceiptData(db, z.uuid().parse(orderId));
+    },
+    { mutates: false },
+  );
 }
 
 export async function openEventAction(input: OpenEventInput) {
   return run(async () => {
+    await authorize("event.open");
     await openEvent(db, input);
   });
 }
 
 export async function closeEventAction() {
-  return run(() => closeEvent(db));
+  return run(async () => {
+    const viewer = await authorize("event.close");
+    await closeEvent(db, viewer.id);
+  });
 }
 
 export async function updateMenuItemAction(input: { productId: string; inMenu?: boolean; soldOut?: boolean }) {
-  return run(() => updateMenuItem(db, input));
+  return run(async () => {
+    if (input.inMenu !== undefined) await authorize("menu.edit");
+    else await authorize("menu.soldOut");
+    await updateMenuItem(db, input);
+  });
 }
 
 export async function createQuickSnackAction(input: QuickSnackInput) {
   return run(async () => {
+    await authorize("menu.edit");
     await createQuickSnack(db, input);
   });
 }
 
 export async function restockAction(productId: string, quantity: number) {
-  return run(() => restock(db, { productId, quantity }));
+  return run(async () => {
+    const viewer = await authorize("stock.restock");
+    await restock(db, { productId, quantity }, viewer.id);
+  });
 }

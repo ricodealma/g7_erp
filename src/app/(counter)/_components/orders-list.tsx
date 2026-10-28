@@ -8,10 +8,13 @@ import type { CounterOrder } from "@/server/counter/queries";
 
 import { cancelOrderAction, getReceiptAction, setOrderStatusAction } from "../actions";
 import type { ReceiptData } from "@/lib/receipt";
-import { Button } from "./ui";
+import { Button } from "@/components/ui";
 
 const STATUS = {
-  AWAITING_CONFIRMATION: { label: "Aguardando", className: "bg-sky-100 text-sky-900 dark:bg-sky-500/15 dark:text-sky-200" },
+  AWAITING_CONFIRMATION: {
+    label: "Aguardando",
+    className: "bg-sky-100 text-sky-900 dark:bg-sky-500/15 dark:text-sky-200",
+  },
   PENDING: { label: "Em preparo", className: "bg-amber-100 text-amber-900 dark:bg-amber-500/15 dark:text-amber-200" },
   READY: { label: "Pronto", className: "bg-emerald-100 text-emerald-900 dark:bg-emerald-500/15 dark:text-emerald-200" },
   DELIVERED: { label: "Entregue", className: "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300" },
@@ -93,7 +96,9 @@ export function OrdersList({
                     {order.paymentStatus === "PENDING" && " (pendente)"} · {formatBRL(order.totalCents)}
                   </p>
                 </div>
-                <span className={`shrink-0 rounded-lg px-2 py-0.5 text-xs font-semibold ${STATUS[order.status].className}`}>
+                <span
+                  className={`shrink-0 rounded-lg px-2 py-0.5 text-xs font-semibold ${STATUS[order.status].className}`}
+                >
                   {STATUS[order.status].label}
                 </span>
               </div>
@@ -107,17 +112,29 @@ export function OrdersList({
 
               <div className="mt-auto flex flex-wrap gap-2">
                 {order.status === "PENDING" && (
-                  <Button variant="success" disabled={busy} onClick={() => act(order.id, () => setOrderStatusAction(order.id, "READY"))}>
+                  <Button
+                    variant="success"
+                    disabled={busy}
+                    onClick={() => act(order.id, () => setOrderStatusAction(order.id, "READY"))}
+                  >
                     Pronto
                   </Button>
                 )}
                 {(order.status === "PENDING" || order.status === "READY") && (
-                  <Button variant="primary" disabled={busy} onClick={() => act(order.id, () => setOrderStatusAction(order.id, "DELIVERED"))}>
+                  <Button
+                    variant="primary"
+                    disabled={busy}
+                    onClick={() => act(order.id, () => setOrderStatusAction(order.id, "DELIVERED"))}
+                  >
                     Entregue
                   </Button>
                 )}
                 {order.status === "READY" && (
-                  <Button variant="ghost" disabled={busy} onClick={() => act(order.id, () => setOrderStatusAction(order.id, "PENDING"))}>
+                  <Button
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={() => act(order.id, () => setOrderStatusAction(order.id, "PENDING"))}
+                  >
                     Voltar
                   </Button>
                 )}
@@ -130,7 +147,11 @@ export function OrdersList({
                     className="ml-auto text-red-600"
                     disabled={busy}
                     onClick={() => {
-                      if (window.confirm(`Cancelar o pedido #${order.number} de ${order.customerName}? O estoque será devolvido.`)) {
+                      if (
+                        window.confirm(
+                          `Cancelar o pedido #${order.number} de ${order.customerName}? O estoque será devolvido.`,
+                        )
+                      ) {
                         act(order.id, () => cancelOrderAction(order.id));
                       }
                     }}

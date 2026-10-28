@@ -96,7 +96,10 @@ export function buildReceipt(data: ReceiptData): ReceiptLine[] {
   }
 
   if (data.notes?.trim()) {
-    lines.push({ text: "" }, ...wrap(t(`*OBS: ${data.notes.trim()}*`), RECEIPT_COLUMNS).map((text) => ({ text, bold: true })));
+    lines.push(
+      { text: "" },
+      ...wrap(t(`*OBS: ${data.notes.trim()}*`), RECEIPT_COLUMNS).map((text) => ({ text, bold: true })),
+    );
   }
 
   lines.push(

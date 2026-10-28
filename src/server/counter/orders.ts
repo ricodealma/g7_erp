@@ -70,7 +70,13 @@ export async function createOrder(db: PrismaClient, rawInput: CreateOrderInput, 
     for (const line of input.lines) {
       quantities.set(line.productId, (quantities.get(line.productId) ?? 0) + line.quantity);
     }
-    const stockMovements: { productId: string; eventId: string; type: "SALE"; quantity: number; createdById?: string }[] = [];
+    const stockMovements: {
+      productId: string;
+      eventId: string;
+      type: "SALE";
+      quantity: number;
+      createdById?: string;
+    }[] = [];
     for (const product of products.sort((a, b) => a.id.localeCompare(b.id))) {
       if (product.stockControl !== "COUNTABLE") continue;
       const quantity = quantities.get(product.id)!;

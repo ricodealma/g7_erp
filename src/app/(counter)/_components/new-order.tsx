@@ -10,7 +10,7 @@ import type { CounterProduct, CounterSnapshot } from "@/server/counter/queries";
 
 import { createOrderAction } from "../actions";
 import { PixQr } from "./pix-qr";
-import { Button, inputClass } from "./ui";
+import { Button, inputClass } from "@/components/ui";
 
 type Cart = Record<string, number>;
 type PaymentMethod = "PIX" | "CASH" | "PAY_LATER";
@@ -48,7 +48,9 @@ function ProductTile({ product, inCart, onAdd }: { product: CounterProduct; inCa
         {product.soldOut ? (
           <span className="rounded-md bg-zinc-800 px-1.5 text-xs text-white">Esgotado</span>
         ) : product.countable ? (
-          <span className={`rounded-md px-1.5 text-xs ${low ? "bg-red-600 text-white" : "bg-zinc-100 dark:bg-zinc-800"}`}>
+          <span
+            className={`rounded-md px-1.5 text-xs ${low ? "bg-red-600 text-white" : "bg-zinc-100 dark:bg-zinc-800"}`}
+          >
             {Math.max(remaining, 0)} un
           </span>
         ) : null}
@@ -83,7 +85,10 @@ export function NewOrder({
   const products = useMemo(() => snapshot.products.filter((product) => product.inMenu), [snapshot.products]);
   const snacks = products.filter((product) => product.category === "SNACK");
   const drinks = products.filter((product) => product.category === "DRINK");
-  const productMap = useMemo(() => new Map(snapshot.products.map((product) => [product.id, product])), [snapshot.products]);
+  const productMap = useMemo(
+    () => new Map(snapshot.products.map((product) => [product.id, product])),
+    [snapshot.products],
+  );
 
   const lines = Object.entries(cart)
     .filter(([id, quantity]) => quantity > 0 && productMap.has(id))
@@ -149,7 +154,12 @@ export function NewOrder({
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
               {snacks.map((product) => (
-                <ProductTile key={product.id} product={product} inCart={cart[product.id] ?? 0} onAdd={() => add(product.id, 1)} />
+                <ProductTile
+                  key={product.id}
+                  product={product}
+                  inCart={cart[product.id] ?? 0}
+                  onAdd={() => add(product.id, 1)}
+                />
               ))}
             </div>
           )}
@@ -158,7 +168,12 @@ export function NewOrder({
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide opacity-60">Bebidas</h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
             {drinks.map((product) => (
-              <ProductTile key={product.id} product={product} inCart={cart[product.id] ?? 0} onAdd={() => add(product.id, 1)} />
+              <ProductTile
+                key={product.id}
+                product={product}
+                inCart={cart[product.id] ?? 0}
+                onAdd={() => add(product.id, 1)}
+              />
             ))}
           </div>
         </div>
@@ -189,11 +204,21 @@ export function NewOrder({
               return (
                 <li key={productId} className="flex items-center gap-2 py-1.5">
                   <span className="flex-1 truncate">{product.name}</span>
-                  <Button variant="ghost" className="!min-h-10 !px-2.5" onClick={() => add(productId, -1)} aria-label={`Remover ${product.name}`}>
+                  <Button
+                    variant="ghost"
+                    className="!min-h-10 !px-2.5"
+                    onClick={() => add(productId, -1)}
+                    aria-label={`Remover ${product.name}`}
+                  >
                     {quantity === 1 ? <Trash2 size={18} /> : <Minus size={18} />}
                   </Button>
                   <span className="w-6 text-center font-semibold tabular-nums">{quantity}</span>
-                  <Button variant="ghost" className="!min-h-10 !px-2.5" onClick={() => add(productId, 1)} aria-label={`Adicionar ${product.name}`}>
+                  <Button
+                    variant="ghost"
+                    className="!min-h-10 !px-2.5"
+                    onClick={() => add(productId, 1)}
+                    aria-label={`Adicionar ${product.name}`}
+                  >
                     <Plus size={18} />
                   </Button>
                 </li>
@@ -206,7 +231,8 @@ export function NewOrder({
           <div className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-900 dark:bg-emerald-500/10 dark:text-emerald-200">
             {comboItems.map((item) => (
               <p key={`${item.comboId}|${item.components.map((component) => component.productId).join("|")}`}>
-                {item.quantity}× {item.description}: {item.components.map((component) => component.description).join(" + ")}
+                {item.quantity}× {item.description}:{" "}
+                {item.components.map((component) => component.description).join(" + ")}
               </p>
             ))}
             {priced.savingsCents > 0 && <p className="font-medium">Economia de {formatBRL(priced.savingsCents)}</p>}
@@ -263,7 +289,10 @@ export function NewOrder({
         </div>
 
         {error && (
-          <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-500/10 dark:text-red-300">
+          <p
+            role="alert"
+            className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-500/10 dark:text-red-300"
+          >
             {error}
           </p>
         )}

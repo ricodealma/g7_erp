@@ -6,7 +6,7 @@ import { formatBRL } from "@/lib/money";
 import type { CounterProduct } from "@/server/counter/queries";
 
 import { openEventAction } from "../actions";
-import { Button, Field, inputClass } from "./ui";
+import { Button, Field, inputClass } from "@/components/ui";
 
 function today() {
   // Data local de São Paulo no formato AAAA-MM-DD.
@@ -62,7 +62,12 @@ export function OpenEvent({ snacks }: { snacks: CounterProduct[] }) {
           {error}
         </p>
       )}
-      <Button variant="primary" className="min-h-14 text-lg" disabled={pending || !name.trim() || !date} onClick={submit}>
+      <Button
+        variant="primary"
+        className="min-h-14 text-lg"
+        disabled={pending || !name.trim() || !date}
+        onClick={submit}
+      >
         {pending ? "Abrindo…" : "Abrir evento"}
       </Button>
     </main>

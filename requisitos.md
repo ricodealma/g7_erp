@@ -128,6 +128,9 @@ O ERP é uma solução Web App de alta performance e baixo custo, focada em otim
 * Login por e-mail e senha (Supabase Auth). Usuários são criados pelo admin (sem cadastro público).
 * **Admin:** acesso total — painel administrativo, dados financeiros, cadastros, fechamento de caixa e tudo que o operador faz.
 * **Operador:** geração de pedidos, alteração de status, cancelamento, reimpressão, marcação de "Esgotado" e entrada rápida de estoque. **Sem acesso** a dados financeiros consolidados nem a cadastros.
+* **Abertura/encerramento de evento e montagem do cardápio do dia** (incluir/remover lanches, cadastro rápido) são ações do **Admin**, por fazerem parte dos cadastros. Sem evento aberto, o operador vê o aviso para acionar o administrador.
+* Usuário autenticado no Supabase sem perfil ativo no banco não acessa o sistema (desativar = `active = false`).
+* Criação de usuários enquanto o painel administrativo não existe: script `pnpm user:create` (usa a chave secreta do Supabase, somente local/CI).
 * A cozinha **não** utiliza o sistema; trabalha com a comanda impressa.
 
 

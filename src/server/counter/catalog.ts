@@ -54,7 +54,10 @@ export async function closeEvent(db: PrismaClient, closedById?: string) {
 }
 
 /** Inclui/remove um lanche do cardápio do dia ou marca como esgotado (RF-05, RF-09a). */
-export async function updateMenuItem(db: PrismaClient, rawInput: { productId: string; inMenu?: boolean; soldOut?: boolean }) {
+export async function updateMenuItem(
+  db: PrismaClient,
+  rawInput: { productId: string; inMenu?: boolean; soldOut?: boolean },
+) {
   const { productId, inMenu, soldOut } = menuItemSchema.parse(rawInput);
   const event = await requireOpenEvent(db);
   const key = { eventId_productId: { eventId: event.id, productId } };
@@ -100,7 +103,11 @@ export async function createQuickSnack(db: PrismaClient, rawInput: QuickSnackInp
 }
 
 /** Entrada rápida de estoque (RF-11). */
-export async function restock(db: PrismaClient, rawInput: { productId: string; quantity: number }, createdById?: string) {
+export async function restock(
+  db: PrismaClient,
+  rawInput: { productId: string; quantity: number },
+  createdById?: string,
+) {
   const { productId, quantity } = restockSchema.parse(rawInput);
   await db.$transaction(async (tx) => {
     const event = await tx.event.findFirst({ where: { status: "OPEN" }, select: { id: true } });

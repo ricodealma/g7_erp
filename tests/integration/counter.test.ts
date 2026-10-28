@@ -92,7 +92,11 @@ describe("createOrder", () => {
 
   it("recusa lanche fora do cardápio do dia ou esgotado", async () => {
     await expect(
-      createOrder(db, { customerName: "Ana", paymentMethod: "PIX", lines: [{ productId: fx.macarrao.id, quantity: 1 }] }),
+      createOrder(db, {
+        customerName: "Ana",
+        paymentMethod: "PIX",
+        lines: [{ productId: fx.macarrao.id, quantity: 1 }],
+      }),
     ).rejects.toBeInstanceOf(DomainError);
 
     await updateMenuItem(db, { productId: fx.pernil.id, soldOut: true });
@@ -183,7 +187,9 @@ describe("evento, cardápio e estoque", () => {
     await closeEvent(db);
 
     await openEvent(db, { name: "Culto Seguinte", date: "2026-11-08", snackIds: [fx.pernil.id] });
-    await expect(openEvent(db, { name: "Duplicado", date: "2026-11-08" })).rejects.toThrow(/Já existe um evento aberto/);
+    await expect(openEvent(db, { name: "Duplicado", date: "2026-11-08" })).rejects.toThrow(
+      /Já existe um evento aberto/,
+    );
 
     const next = await createOrder(db, {
       customerName: "Bia",

@@ -33,15 +33,38 @@ export async function seedFixtures(db: PrismaClient) {
 
   const [pizza, pernil, macarrao, refri, pitchula] = await Promise.all([
     db.product.create({
-      data: { name: "Pizza", category: "SNACK", price: "7.50", stockControl: "COUNTABLE", stockQuantity: 5, lowStockThreshold: 1 },
+      data: {
+        name: "Pizza",
+        category: "SNACK",
+        price: "7.50",
+        stockControl: "COUNTABLE",
+        stockQuantity: 5,
+        lowStockThreshold: 1,
+      },
     }),
-    db.product.create({ data: { name: "Pão com Pernil", category: "SNACK", price: "7.00", stockControl: "UNCOUNTABLE" } }),
+    db.product.create({
+      data: { name: "Pão com Pernil", category: "SNACK", price: "7.00", stockControl: "UNCOUNTABLE" },
+    }),
     db.product.create({ data: { name: "Macarrão", category: "SNACK", price: "12.00", stockControl: "UNCOUNTABLE" } }),
     db.product.create({
-      data: { name: "Refri Lata", category: "DRINK", price: "5.00", stockControl: "COUNTABLE", stockQuantity: 10, lowStockThreshold: 2 },
+      data: {
+        name: "Refri Lata",
+        category: "DRINK",
+        price: "5.00",
+        stockControl: "COUNTABLE",
+        stockQuantity: 10,
+        lowStockThreshold: 2,
+      },
     }),
     db.product.create({
-      data: { name: "Pitchulinha", category: "DRINK", price: "3.00", stockControl: "COUNTABLE", stockQuantity: 2, lowStockThreshold: 1 },
+      data: {
+        name: "Pitchulinha",
+        category: "DRINK",
+        price: "3.00",
+        stockControl: "COUNTABLE",
+        stockQuantity: 2,
+        lowStockThreshold: 1,
+      },
     }),
   ]);
 
