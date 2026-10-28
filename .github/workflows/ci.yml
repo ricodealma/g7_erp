@@ -39,6 +39,7 @@ jobs:
       CRON_SECRET: ci-placeholder-cron-secret
       NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/g7_erp_test
 
     steps:
       - uses: actions/checkout@v5
@@ -66,5 +67,8 @@ jobs:
 
       - name: Migrations — schema sem migration correspondente?
         run: pnpm prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
+
+      - name: Testes (unitários e integração)
+        run: pnpm test
 
       - run: pnpm build

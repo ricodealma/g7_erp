@@ -18,6 +18,15 @@ pnpm db:seed              # dados iniciais (idempotente)
 pnpm dev
 ```
 
+## Testes
+
+```bash
+pnpm test        # unitários + integração (recria o banco g7_erp_test no PostgreSQL local)
+pnpm test:unit   # apenas lógica pura (combos, Pix, cupom, ESC/POS)
+```
+
+O banco de integração vem de `TEST_DATABASE_URL` (padrão `localhost:5433/g7_erp_test`) e precisa terminar em `_test`.
+
 ## Banco de dados e migrations
 
 | Variável       | Uso                                                        |
