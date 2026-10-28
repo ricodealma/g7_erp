@@ -89,6 +89,7 @@ O ERP é uma solução Web App de alta performance e baixo custo, focada em otim
   * Cada retirada continua sendo um pedido próprio, com número e cupom para a cozinha; a conta agrupa os pedidos pendentes.
   * Ao digitar o nome, o balcão sugere as contas em aberto e mostra o saldo atual e o novo total.
   * A quitação pode ser da conta inteira ou de um pedido específico (pagamento parcial).
+  * Pedido "pagar depois" entregue aparece como **"Pegou · a pagar"**. A aba **A receber** do balcão soma, por pessoa, tudo o que ela já retirou (itens agrupados, de qualquer evento); pedidos ainda em preparo aparecem como aviso e entram na soma quando entregues. O operador recebe ali mesmo (Pix com QR do total ou dinheiro com troco), e o valor entra no caixa do evento aberto.
 
 
 * **[RF-13] Evento / Sessão de Vendas:**

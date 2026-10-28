@@ -5,6 +5,7 @@ import {
   Bluetooth,
   BluetoothConnected,
   ClipboardList,
+  HandCoins,
   LayoutDashboard,
   LogOut,
   Package,
@@ -32,6 +33,7 @@ import { useOnline, usePrinter } from "./hooks";
 import { isLowStock, NewOrder } from "./new-order";
 import { OpenEvent } from "./open-event";
 import { OrdersList } from "./orders-list";
+import { Receivables } from "./receivables";
 
 const linkClass =
   "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 font-medium text-zinc-700 hover:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-zinc-800";
@@ -99,7 +101,7 @@ function PrinterButton() {
 
 export function CounterApp({ snapshot, viewer }: { snapshot: CounterSnapshot; viewer: CounterViewer }) {
   const online = useOnline();
-  const [tab, setTab] = useState<"new" | "orders">("new");
+  const [tab, setTab] = useState<"new" | "orders" | "receivables">("new");
   const [dialog, setDialog] = useState<"menu" | "stock" | null>(null);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const [toast, setToast] = useState<{
@@ -198,12 +200,16 @@ export function CounterApp({ snapshot, viewer }: { snapshot: CounterSnapshot; vi
         </button>
       )}
 
-      <nav className="flex gap-2 px-4 pt-3" aria-label="Seções">
+      <nav className="flex flex-wrap gap-2 px-4 pt-3" aria-label="Seções">
         <Button variant={tab === "new" ? "primary" : "secondary"} onClick={() => setTab("new")}>
           Novo pedido
         </Button>
         <Button variant={tab === "orders" ? "primary" : "secondary"} onClick={() => setTab("orders")}>
           <ClipboardList size={18} /> Pedidos {openOrders > 0 && <span className="font-bold">({openOrders})</span>}
+        </Button>
+        <Button variant={tab === "receivables" ? "primary" : "secondary"} onClick={() => setTab("receivables")}>
+          <HandCoins size={18} /> A receber
+          {snapshot.receivables.length > 0 && <span className="font-bold">({snapshot.receivables.length})</span>}
         </Button>
       </nav>
 
@@ -222,6 +228,12 @@ export function CounterApp({ snapshot, viewer }: { snapshot: CounterSnapshot; vi
               if (account) setToast({ message: `${label} registrado.${account}` });
               void print(receipt, `${label} impresso.${account}`);
             }}
+          />
+        ) : tab === "receivables" ? (
+          <Receivables
+            receivables={snapshot.receivables}
+            settings={snapshot.settings}
+            onDone={(message) => setToast({ message })}
           />
         ) : (
           <OrdersList

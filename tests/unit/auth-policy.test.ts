@@ -9,6 +9,7 @@ describe("permissões por perfil (RF-15)", () => {
       "order.status",
       "order.cancel",
       "order.reprint",
+      "payment.receive",
       "stock.restock",
       "menu.soldOut",
     ] as const) {

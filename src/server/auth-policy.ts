@@ -9,6 +9,8 @@ const PERMISSIONS = {
   "order.status": ["ADMIN", "OPERATOR"],
   "order.cancel": ["ADMIN", "OPERATOR"],
   "order.reprint": ["ADMIN", "OPERATOR"],
+  // Receber no balcão o que a pessoa já pegou ("A receber").
+  "payment.receive": ["ADMIN", "OPERATOR"],
   "stock.restock": ["ADMIN", "OPERATOR"],
   "menu.soldOut": ["ADMIN", "OPERATOR"],
   "menu.edit": ["ADMIN"],

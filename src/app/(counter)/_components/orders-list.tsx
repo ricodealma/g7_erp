@@ -19,7 +19,13 @@ const STATUS = {
   READY: { label: "Pronto", className: "bg-emerald-100 text-emerald-900 dark:bg-emerald-500/15 dark:text-emerald-200" },
   DELIVERED: { label: "Entregue", className: "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300" },
   CANCELED: { label: "Cancelado", className: "bg-red-100 text-red-900 dark:bg-red-500/15 dark:text-red-200" },
+  /** Entregue, mas "pagar depois" ainda pendente: aparece na aba "A receber". */
+  OWING: { label: "Pegou · a pagar", className: "bg-sky-100 text-sky-900 dark:bg-sky-500/15 dark:text-sky-200" },
 } as const;
+
+function statusOf(order: CounterOrder) {
+  return order.status === "DELIVERED" && order.paymentStatus === "PENDING" ? STATUS.OWING : STATUS[order.status];
+}
 
 const PAYMENT = { PIX: "Pix", CASH: "Dinheiro", PAY_LATER: "Pagar depois" } as const;
 
@@ -96,10 +102,8 @@ export function OrdersList({
                     {order.paymentStatus === "PENDING" && " (pendente)"} · {formatBRL(order.totalCents)}
                   </p>
                 </div>
-                <span
-                  className={`shrink-0 rounded-lg px-2 py-0.5 text-xs font-semibold ${STATUS[order.status].className}`}
-                >
-                  {STATUS[order.status].label}
+                <span className={`shrink-0 rounded-lg px-2 py-0.5 text-xs font-semibold ${statusOf(order).className}`}>
+                  {statusOf(order).label}
                 </span>
               </div>
 
@@ -126,7 +130,7 @@ export function OrdersList({
                     disabled={busy}
                     onClick={() => act(order.id, () => setOrderStatusAction(order.id, "DELIVERED"))}
                   >
-                    Entregue
+                    {order.paymentStatus === "PENDING" ? "Entregue (a receber)" : "Entregue"}
                   </Button>
                 )}
                 {order.status === "READY" && (

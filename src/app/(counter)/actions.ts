@@ -4,6 +4,8 @@ import { z } from "zod";
 
 import type { ReceiptData } from "@/lib/receipt";
 import { run, type ActionResult } from "@/server/action-result";
+import { settlePayments } from "@/server/admin/finance";
+import type { SettleInput } from "@/server/admin/schemas";
 import { authorize } from "@/server/auth";
 import { createQuickSnack, openEvent, restock, updateMenuItem } from "@/server/counter/catalog";
 import { accountBalanceCents, cancelOrder, createOrder, getReceiptData, setOrderStatus } from "@/server/counter/orders";
@@ -37,6 +39,14 @@ export async function cancelOrderAction(orderId: string) {
   return run(async () => {
     const viewer = await authorize("order.cancel");
     await cancelOrder(db, z.uuid().parse(orderId), viewer.id);
+  });
+}
+
+/** Recebe a conta (ou parte dela) no balcão; o valor entra no caixa do evento aberto. */
+export async function receivePaymentAction(input: SettleInput) {
+  return run(async () => {
+    const viewer = await authorize("payment.receive");
+    await settlePayments(db, input, viewer.id);
   });
 }
 

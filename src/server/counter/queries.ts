@@ -1,4 +1,5 @@
-import type { PrismaClient } from "@/generated/prisma/client";
+import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import { customerKey } from "@/lib/customer";
 import { toCents } from "@/lib/money";
 
 export type CounterProduct = {
@@ -29,6 +30,20 @@ export type CounterOrder = {
 /** Conta de fiado com saldo em aberto (sugestão ao digitar o nome). */
 export type OpenAccount = { id: string; name: string; key: string; balanceCents: number };
 
+/**
+ * Conta a receber: o que a pessoa já pegou (pedidos "pagar depois" entregues, de qualquer
+ * evento), com os itens somados. Pedidos ainda em preparo entram quando forem entregues.
+ */
+export type Receivable = {
+  customerId: string;
+  name: string;
+  totalCents: number;
+  orderIds: string[];
+  orderNumbers: { number: number; eventName: string; current: boolean }[];
+  items: { description: string; quantity: number; totalCents: number }[];
+  inPreparation: { count: number; totalCents: number };
+};
+
 export type CounterSnapshot = {
   event: { id: string; name: string; date: string } | null;
   settings: { pixKey: string; pixMerchant: string; pixCity: string };
@@ -36,13 +51,72 @@ export type CounterSnapshot = {
   combos: { id: string; name: string; optionIds: string[] }[];
   orders: CounterOrder[];
   accounts: OpenAccount[];
+  receivables: Receivable[];
 };
+
+const itemsInclude = { items: { include: { components: true } } } as const;
+type OrderWithItems = Prisma.OrderGetPayload<{ include: typeof itemsInclude }>;
+
+function describeItem(item: OrderWithItems["items"][number]) {
+  const parts = item.components.map((component) => component.description).join(" + ");
+  return `${item.description}${parts ? ` (${parts})` : ""}`;
+}
+
+function buildReceivables(
+  orders: (OrderWithItems & { event: { name: string }; customer: { name: string } | null })[],
+  currentEventId: string | undefined,
+): Receivable[] {
+  type Draft = Receivable & { lines: Map<string, Receivable["items"][number]> };
+  const byCustomer = new Map<string, Draft>();
+  for (const order of orders) {
+    if (!order.customerId || !order.customer) continue;
+    const account: Draft = byCustomer.get(order.customerId) ?? {
+      customerId: order.customerId,
+      name: order.customer.name,
+      totalCents: 0,
+      orderIds: [],
+      orderNumbers: [],
+      items: [],
+      inPreparation: { count: 0, totalCents: 0 },
+      lines: new Map(),
+    };
+    byCustomer.set(order.customerId, account);
+
+    const orderCents = toCents(order.total);
+    if (order.status !== "DELIVERED") {
+      account.inPreparation.count++;
+      account.inPreparation.totalCents += orderCents;
+      continue;
+    }
+    account.totalCents += orderCents;
+    account.orderIds.push(order.id);
+    account.orderNumbers.push({
+      number: order.number,
+      eventName: order.event.name,
+      current: order.eventId === currentEventId,
+    });
+    for (const item of order.items) {
+      const description = describeItem(item);
+      const line = account.lines.get(description) ?? { description, quantity: 0, totalCents: 0 };
+      line.quantity += item.quantity;
+      line.totalCents += item.quantity * toCents(item.unitPrice);
+      account.lines.set(description, line);
+    }
+  }
+  return [...byCustomer.values()]
+    .filter((account) => account.orderIds.length > 0)
+    .map(({ lines, ...account }) => ({
+      ...account,
+      items: [...lines.values()].sort((a, b) => b.quantity - a.quantity || a.description.localeCompare(b.description)),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+}
 
 /** Tudo o que a tela de balcão precisa em uma única leitura. */
 export async function getCounterSnapshot(db: PrismaClient): Promise<CounterSnapshot> {
   const event = await db.event.findFirst({ where: { status: "OPEN" } });
 
-  const [settings, products, combos, orders, balances] = await Promise.all([
+  const [settings, products, combos, orders, payLater] = await Promise.all([
     db.settings.findUnique({ where: { id: 1 } }),
     db.product.findMany({
       where: { active: true },
@@ -57,16 +131,26 @@ export async function getCounterSnapshot(db: PrismaClient): Promise<CounterSnaps
           orderBy: { number: "desc" },
         })
       : Promise.resolve([]),
-    db.order.groupBy({
-      by: ["customerId"],
+    db.order.findMany({
       where: { paymentMethod: "PAY_LATER", paymentStatus: "PENDING", status: { not: "CANCELED" } },
-      _sum: { total: true },
+      include: { ...itemsInclude, event: { select: { name: true } }, customer: { select: { name: true } } },
+      orderBy: [{ createdAt: "asc" }],
     }),
   ]);
-  const customers = await db.customer.findMany({
-    where: { id: { in: balances.flatMap((row) => (row.customerId ? [row.customerId] : [])) } },
-  });
-  const balanceById = new Map(balances.map((row) => [row.customerId, toCents(row._sum.total ?? 0)]));
+
+  // Saldo por conta (inclui pedidos em preparo) para sugerir o nome no novo pedido.
+  const balances = new Map<string, OpenAccount>();
+  for (const order of payLater) {
+    if (!order.customerId || !order.customer) continue;
+    const account = balances.get(order.customerId) ?? {
+      id: order.customerId,
+      name: order.customer.name,
+      key: customerKey(order.customer.name),
+      balanceCents: 0,
+    };
+    account.balanceCents += toCents(order.total);
+    balances.set(order.customerId, account);
+  }
 
   return {
     event: event && { id: event.id, name: event.name, date: event.date.toISOString().slice(0, 10) },
@@ -104,20 +188,9 @@ export async function getCounterSnapshot(db: PrismaClient): Promise<CounterSnaps
       paymentMethod: order.paymentMethod,
       paymentStatus: order.paymentStatus,
       createdAt: order.createdAt.toISOString(),
-      summary: order.items
-        .map((item) => {
-          const parts = item.components.map((component) => component.description).join(" + ");
-          return `${item.quantity}x ${item.description}${parts ? ` (${parts})` : ""}`;
-        })
-        .join(", "),
+      summary: order.items.map((item) => `${item.quantity}x ${describeItem(item)}`).join(", "),
     })),
-    accounts: customers
-      .map((customer) => ({
-        id: customer.id,
-        name: customer.name,
-        key: customer.nameKey,
-        balanceCents: balanceById.get(customer.id) ?? 0,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+    accounts: [...balances.values()].sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+    receivables: buildReceivables(payLater, event?.id),
   };
 }

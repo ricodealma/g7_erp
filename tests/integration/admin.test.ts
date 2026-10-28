@@ -173,6 +173,41 @@ describe("conta de fiado por pessoa", () => {
     expect(await accountBalanceCents(db, first.customerId!)).toBe(500);
   });
 
+  it("a receber soma só o que a pessoa já pegou; o pedido em preparo entra ao ser entregue", async () => {
+    const took = async (lines: Parameters<typeof createOrder>[1]["lines"]) =>
+      deliveredOrder({ customerName: "Ricardo", paymentMethod: "PAY_LATER", lines });
+    await took([
+      { productId: fx.pizza.id, quantity: 2 },
+      { productId: fx.refri.id, quantity: 2 },
+    ]);
+    await took([{ productId: fx.refri.id, quantity: 1 }]);
+    const preparing = await createOrder(db, {
+      customerName: "ricardo",
+      paymentMethod: "PAY_LATER",
+      lines: [{ productId: fx.pizza.id, quantity: 1 }],
+    });
+
+    const [ricardo] = (await getCounterSnapshot(db)).receivables;
+    expect(ricardo).toMatchObject({
+      name: "Ricardo",
+      // 2x combo (Pizza 7,50 + Refri 5,00 = 12,00) + Refri 5,00; a pizza em preparo fica de fora.
+      totalCents: 2900,
+      items: [
+        { description: "Combo Lanche do Dia (Pizza + Refri Lata)", quantity: 2, totalCents: 2400 },
+        { description: "Refri Lata", quantity: 1, totalCents: 500 },
+      ],
+      inPreparation: { count: 1, totalCents: 750 },
+    });
+    expect(ricardo.orderIds).toHaveLength(2);
+
+    await settlePayments(db, { orderIds: ricardo.orderIds, method: "CASH" });
+    expect((await getCounterSnapshot(db)).receivables).toEqual([]);
+
+    await setOrderStatus(db, { orderId: preparing.id, status: "DELIVERED" });
+    const [after] = (await getCounterSnapshot(db)).receivables;
+    expect(after).toMatchObject({ totalCents: 750, inPreparation: { count: 0, totalCents: 0 } });
+  });
+
   it("quita a conta inteira de uma vez, ou nada se ela mudou", async () => {
     const refri = await createOrder(db, {
       customerName: "Ricardo",

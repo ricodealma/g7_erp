@@ -33,7 +33,7 @@ pnpm dev
 
 - **Financeiro:** eventos com total vendido e diferença de caixa; relatório por evento (forma de pagamento, itens, unidades por produto incluindo itens de combos).
 - **Fechamento de caixa:** dinheiro esperado = vendas em dinheiro + fiado quitado em dinheiro durante o evento. O admin informa o valor contado; esperado, contado e observações ficam registrados e o evento é encerrado.
-- **Fiado:** contas por pessoa. O nome é único (sem diferenciar maiúsculas, acentos e espaços): um novo "pagar depois" com o mesmo nome soma na conta existente, e o balcão sugere as contas em aberto ao digitar. Cada pedido continua com o seu cupom para a cozinha. A quitação (a conta inteira ou um pedido, em Pix ou dinheiro) entra no caixa do evento aberto naquele momento.
+- **Fiado:** contas por pessoa. O nome é único (sem diferenciar maiúsculas, acentos e espaços): um novo "pagar depois" com o mesmo nome soma na conta existente, e o balcão sugere as contas em aberto ao digitar. Cada pedido continua com o seu cupom para a cozinha. No balcão, a aba **A receber** soma o que cada pessoa já retirou (status "Pegou · a pagar") e o operador recebe ali mesmo, em Pix ou dinheiro. A quitação (a conta inteira ou um pedido, em Pix ou dinheiro) entra no caixa do evento aberto naquele momento.
 - **Produtos e combos:** cadastro, preço, tipo de controle de estoque, limite crítico e ativação. O combo (1 lanche + 1 bebida permitidos) custa a soma dos dois sem os centavos. A contagem de inventário define o saldo real e registra a diferença como `ADJUSTMENT`.
 - **Usuários** e **Configurações** (chave Pix, recebedor, cidade e cabeçalho do cupom).
 
