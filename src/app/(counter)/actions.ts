@@ -6,7 +6,7 @@ import type { ReceiptData } from "@/lib/receipt";
 import { run, type ActionResult } from "@/server/action-result";
 import { authorize } from "@/server/auth";
 import { createQuickSnack, openEvent, restock, updateMenuItem } from "@/server/counter/catalog";
-import { cancelOrder, createOrder, getReceiptData, setOrderStatus } from "@/server/counter/orders";
+import { accountBalanceCents, cancelOrder, createOrder, getReceiptData, setOrderStatus } from "@/server/counter/orders";
 import type { CreateOrderInput, OpenEventInput, QuickSnackInput } from "@/server/counter/schemas";
 import { db } from "@/server/db";
 
@@ -14,11 +14,15 @@ import { db } from "@/server/db";
 
 export async function createOrderAction(
   input: CreateOrderInput,
-): Promise<ActionResult<{ id: string; number: number; receipt: ReceiptData }>> {
+): Promise<ActionResult<{ id: string; number: number; receipt: ReceiptData; accountBalanceCents: number | null }>> {
   return run(async () => {
     const viewer = await authorize("order.create");
-    const order = await createOrder(db, input, viewer.id);
-    return { ...order, receipt: await getReceiptData(db, order.id) };
+    const { customerId, ...order } = await createOrder(db, input, viewer.id);
+    const [receipt, balance] = await Promise.all([
+      getReceiptData(db, order.id),
+      customerId ? accountBalanceCents(db, customerId) : null,
+    ]);
+    return { ...order, receipt, accountBalanceCents: balance };
   });
 }
 

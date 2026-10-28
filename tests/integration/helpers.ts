@@ -14,6 +14,7 @@ const TABLES = [
   "order_item_components",
   "order_items",
   "orders",
+  "customers",
   "event_menu_items",
   "events",
   "combo_options",

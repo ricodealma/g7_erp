@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@/generated/prisma/client";
 import { priceCart, type CatalogProduct } from "@/lib/combos";
+import { cleanCustomerName, customerKey } from "@/lib/customer";
 import { fromCents, toCents } from "@/lib/money";
 import { paymentLabel, type ReceiptData } from "@/lib/receipt";
 
@@ -16,6 +17,7 @@ const TRANSITIONS = {
 /**
  * Cria o pedido no evento aberto (RF-04 a RF-09, RF-12): precifica no servidor com combos
  * inteligentes, baixa o estoque de forma atômica (inclusive reservas) e numera por evento.
+ * "Pagar depois" entra na conta de fiado da pessoa (criada no primeiro fiado).
  */
 export async function createOrder(db: PrismaClient, rawInput: CreateOrderInput, createdById?: string) {
   const input = createOrderSchema.parse(rawInput);
@@ -97,11 +99,20 @@ export async function createOrder(db: PrismaClient, rawInput: CreateOrderInput, 
     });
 
     const paid = input.paymentMethod !== "PAY_LATER";
+    const customer = paid
+      ? null
+      : await tx.customer.upsert({
+          where: { nameKey: customerKey(input.customerName) },
+          create: { name: cleanCustomerName(input.customerName), nameKey: customerKey(input.customerName) },
+          update: {},
+          select: { id: true, name: true },
+        });
     return tx.order.create({
       data: {
         eventId: event.id,
         number: orderSequence,
-        customerName: input.customerName,
+        customerName: customer?.name ?? input.customerName,
+        customerId: customer?.id,
         isReservation: input.isReservation,
         notes: input.notes || null,
         total: fromCents(priced.totalCents),
@@ -132,9 +143,18 @@ export async function createOrder(db: PrismaClient, rawInput: CreateOrderInput, 
         },
         stockMovements: { create: stockMovements },
       },
-      select: { id: true, number: true },
+      select: { id: true, number: true, customerId: true },
     });
   });
+}
+
+/** Saldo em aberto da conta de fiado. */
+export async function accountBalanceCents(db: PrismaClient, customerId: string) {
+  const result = await db.order.aggregate({
+    where: { customerId, paymentMethod: "PAY_LATER", paymentStatus: "PENDING", status: { not: "CANCELED" } },
+    _sum: { total: true },
+  });
+  return toCents(result._sum.total ?? 0);
 }
 
 export async function setOrderStatus(db: PrismaClient, rawInput: { orderId: string; status: string }) {

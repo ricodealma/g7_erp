@@ -84,7 +84,11 @@ O ERP é uma solução Web App de alta performance e baixo custo, focada em otim
 * Formas aceitas: **Pix**, **Dinheiro** e **Pagar depois** (fiado).
 * **Pix:** exibir na tela a chave Pix (`jovens.cdc.7@gmail.com`, configurável no painel admin) e um **QR Code Pix estático com o valor do pedido** (BR Code "copia e cola"). A confirmação do recebimento é manual pelo operador.
 * **Dinheiro:** campo opcional "valor recebido" com cálculo automático do troco.
-* **Pagar depois:** o pedido fica registrado como **pendente de pagamento** vinculado ao nome do cliente; a quitação posterior é feita no painel admin (RF-16), informando a forma usada (Pix ou dinheiro).
+* **Pagar depois:** o pedido fica registrado como **pendente de pagamento** na **conta de fiado** do cliente; a quitação posterior é feita no painel admin (RF-16), informando a forma usada (Pix ou dinheiro).
+  * O nome da conta é **único**, sem diferenciar maiúsculas, acentos e espaços ("Ricardo" = "ricardo"). Um novo fiado com o mesmo nome **soma na conta existente** (ex.: refri e depois salgado ficam na conta do Ricardo); pessoas diferentes com o mesmo nome precisam de um complemento ("Ricardo Silva").
+  * Cada retirada continua sendo um pedido próprio, com número e cupom para a cozinha; a conta agrupa os pedidos pendentes.
+  * Ao digitar o nome, o balcão sugere as contas em aberto e mostra o saldo atual e o novo total.
+  * A quitação pode ser da conta inteira ou de um pedido específico (pagamento parcial).
 
 
 * **[RF-13] Evento / Sessão de Vendas:**

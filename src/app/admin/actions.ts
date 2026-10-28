@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { run } from "@/server/action-result";
 import { createProduct, saveCombo, setStockCount, updateProduct, updateSettings } from "@/server/admin/catalog";
-import { closeEvent, settlePayment } from "@/server/admin/finance";
+import { closeEvent, settlePayments } from "@/server/admin/finance";
 import type {
   CloseEventInput,
   ComboInput,
@@ -22,10 +22,10 @@ import { createAuthAdmin } from "@/server/supabase-admin";
 
 // Toda action valida sessão e permissão (RF-15/RF-16): Server Actions são endpoints POST públicos.
 
-export async function settlePaymentAction(input: SettleInput) {
+export async function settlePaymentsAction(input: SettleInput) {
   return run(async () => {
     const viewer = await authorize("finance.settle");
-    await settlePayment(db, input, viewer.id);
+    await settlePayments(db, input, viewer.id);
   });
 }
 

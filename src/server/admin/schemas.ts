@@ -46,7 +46,8 @@ export const settingsSchema = z.object({
 });
 export type SettingsInput = z.input<typeof settingsSchema>;
 
-export const settleSchema = z.object({ orderId: id, method: z.enum(["PIX", "CASH"]) });
+/** Quita os pedidos indicados (um pedido ou a conta inteira da pessoa). */
+export const settleSchema = z.object({ orderIds: z.array(id).min(1).max(200), method: z.enum(["PIX", "CASH"]) });
 export type SettleInput = z.input<typeof settleSchema>;
 
 export const closeEventSchema = z.object({

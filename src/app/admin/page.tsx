@@ -41,7 +41,7 @@ async function Overview() {
         </Card>
         <Card title="Fiado em aberto">
           <Stat
-            label={`${pending.count} pedido(s)`}
+            label={`${pending.accounts} conta(s) · ${pending.count} pedido(s)`}
             value={formatBRL(pending.totalCents)}
             tone={pending.count ? "danger" : undefined}
           />

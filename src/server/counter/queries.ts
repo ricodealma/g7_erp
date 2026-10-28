@@ -26,19 +26,23 @@ export type CounterOrder = {
   summary: string;
 };
 
+/** Conta de fiado com saldo em aberto (sugestão ao digitar o nome). */
+export type OpenAccount = { id: string; name: string; key: string; balanceCents: number };
+
 export type CounterSnapshot = {
   event: { id: string; name: string; date: string } | null;
   settings: { pixKey: string; pixMerchant: string; pixCity: string };
   products: CounterProduct[];
   combos: { id: string; name: string; priceCents: number; optionIds: string[] }[];
   orders: CounterOrder[];
+  accounts: OpenAccount[];
 };
 
 /** Tudo o que a tela de balcão precisa em uma única leitura. */
 export async function getCounterSnapshot(db: PrismaClient): Promise<CounterSnapshot> {
   const event = await db.event.findFirst({ where: { status: "OPEN" } });
 
-  const [settings, products, combos, orders] = await Promise.all([
+  const [settings, products, combos, orders, balances] = await Promise.all([
     db.settings.findUnique({ where: { id: 1 } }),
     db.product.findMany({
       where: { active: true },
@@ -53,7 +57,16 @@ export async function getCounterSnapshot(db: PrismaClient): Promise<CounterSnaps
           orderBy: { number: "desc" },
         })
       : Promise.resolve([]),
+    db.order.groupBy({
+      by: ["customerId"],
+      where: { paymentMethod: "PAY_LATER", paymentStatus: "PENDING", status: { not: "CANCELED" } },
+      _sum: { total: true },
+    }),
   ]);
+  const customers = await db.customer.findMany({
+    where: { id: { in: balances.flatMap((row) => (row.customerId ? [row.customerId] : [])) } },
+  });
+  const balanceById = new Map(balances.map((row) => [row.customerId, toCents(row._sum.total ?? 0)]));
 
   return {
     event: event && { id: event.id, name: event.name, date: event.date.toISOString().slice(0, 10) },
@@ -99,5 +112,13 @@ export async function getCounterSnapshot(db: PrismaClient): Promise<CounterSnaps
         })
         .join(", "),
     })),
+    accounts: customers
+      .map((customer) => ({
+        id: customer.id,
+        name: customer.name,
+        key: customer.nameKey,
+        balanceCents: balanceById.get(customer.id) ?? 0,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
   };
 }

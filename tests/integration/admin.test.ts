@@ -7,14 +7,15 @@ import {
   closeEvent,
   getEventReport,
   listEvents,
-  listPendingPayments,
+  listPendingAccounts,
   pendingPaymentsTotal,
-  settlePayment,
+  settlePayments,
 } from "@/server/admin/finance";
 import { createUser, resetPassword, updateUser, type AuthAdmin } from "@/server/admin/users";
 import { openEvent } from "@/server/counter/catalog";
 import { DomainError } from "@/server/counter/errors";
-import { cancelOrder, createOrder, setOrderStatus } from "@/server/counter/orders";
+import { accountBalanceCents, cancelOrder, createOrder, setOrderStatus } from "@/server/counter/orders";
+import { getCounterSnapshot } from "@/server/counter/queries";
 
 import { createTestDb, seedFixtures } from "./helpers";
 
@@ -62,13 +63,13 @@ describe("fiado e fechamento de caixa", () => {
     });
     await cancelOrder(db, canceled.id);
 
-    expect(await pendingPaymentsTotal(db)).toEqual({ count: 1, totalCents: 1000 });
-    const [pending] = await listPendingPayments(db);
-    expect(pending).toMatchObject({ customerName: "Caio", totalCents: 1000, eventName: "Culto Teste" });
+    expect(await pendingPaymentsTotal(db)).toEqual({ accounts: 1, count: 1, totalCents: 1000 });
+    const [pending] = await listPendingAccounts(db);
+    expect(pending).toMatchObject({ name: "Caio", totalCents: 1000, orders: [{ eventName: "Culto Teste" }] });
 
-    await settlePayment(db, { orderId: fiado.id, method: "CASH" });
-    await expect(settlePayment(db, { orderId: fiado.id, method: "PIX" })).rejects.toBeInstanceOf(DomainError);
-    expect(await pendingPaymentsTotal(db)).toEqual({ count: 0, totalCents: 0 });
+    await settlePayments(db, { orderIds: [fiado.id], method: "CASH" });
+    await expect(settlePayments(db, { orderIds: [fiado.id], method: "PIX" })).rejects.toBeInstanceOf(DomainError);
+    expect(await pendingPaymentsTotal(db)).toEqual({ accounts: 0, count: 0, totalCents: 0 });
 
     const report = await getEventReport(db, fx.event.id);
     expect(report).toMatchObject({
@@ -105,7 +106,7 @@ describe("fiado e fechamento de caixa", () => {
     });
     await closeEvent(db, { eventId: fx.event.id, countedCashCents: 0 });
 
-    await settlePayment(db, { orderId: fiado.id, method: "PIX" });
+    await settlePayments(db, { orderIds: [fiado.id], method: "PIX" });
     expect((await db.order.findUniqueOrThrow({ where: { id: fiado.id } })).settledEventId).toBeNull();
 
     const next = await openEvent(db, { name: "Culto Seguinte", date: "2026-11-08" });
@@ -114,11 +115,85 @@ describe("fiado e fechamento de caixa", () => {
       paymentMethod: "PAY_LATER",
       lines: [{ productId: fx.refri.id, quantity: 1 }],
     });
-    await settlePayment(db, { orderId: other.id, method: "CASH" });
+    await settlePayments(db, { orderIds: [other.id], method: "CASH" });
 
     const report = await getEventReport(db, next.id);
     expect(report?.settlements).toEqual({ pixCents: 0, cashCents: 500, count: 1 });
     expect(report?.expectedCashCents).toBe(500);
+  });
+});
+
+describe("conta de fiado por pessoa", () => {
+  it("agrupa os fiados pelo nome sem diferenciar maiúsculas, acentos e espaços", async () => {
+    const first = await createOrder(db, {
+      customerName: "  Ricardo  Sá ",
+      paymentMethod: "PAY_LATER",
+      lines: [{ productId: fx.refri.id, quantity: 1 }],
+    });
+    const second = await createOrder(db, {
+      customerName: "ricardo sa",
+      paymentMethod: "PAY_LATER",
+      lines: [{ productId: fx.pizza.id, quantity: 1 }],
+    });
+    // Pagamento na hora não abre conta, mesmo com o mesmo nome.
+    const paid = await createOrder(db, {
+      customerName: "Ricardo Sá",
+      paymentMethod: "PIX",
+      lines: [{ productId: fx.pitchula.id, quantity: 1 }],
+    });
+    await createOrder(db, {
+      customerName: "Lia",
+      paymentMethod: "PAY_LATER",
+      lines: [{ productId: fx.refri.id, quantity: 1 }],
+    });
+
+    expect(first.customerId).toBe(second.customerId);
+    expect(paid.customerId).toBeNull();
+    expect(await db.customer.count()).toBe(2);
+    expect(await accountBalanceCents(db, first.customerId!)).toBe(1250);
+
+    // Nome da conta mantém a grafia do primeiro fiado e vale para os pedidos seguintes.
+    const orders = await db.order.findMany({ where: { customerId: first.customerId }, orderBy: { number: "asc" } });
+    expect(orders.map((order) => order.customerName)).toEqual(["Ricardo Sá", "Ricardo Sá"]);
+
+    const accounts = await listPendingAccounts(db);
+    expect(accounts.map((account) => [account.name, account.totalCents, account.orders.length])).toEqual([
+      ["Lia", 500, 1],
+      ["Ricardo Sá", 1250, 2],
+    ]);
+    expect((await getCounterSnapshot(db)).accounts).toEqual([
+      { id: expect.any(String), name: "Lia", key: "lia", balanceCents: 500 },
+      { id: first.customerId, name: "Ricardo Sá", key: "ricardo sa", balanceCents: 1250 },
+    ]);
+    expect(await pendingPaymentsTotal(db)).toEqual({ accounts: 2, count: 3, totalCents: 1750 });
+
+    // Cancelado sai da conta.
+    await cancelOrder(db, second.id);
+    expect(await accountBalanceCents(db, first.customerId!)).toBe(500);
+  });
+
+  it("quita a conta inteira de uma vez, ou nada se ela mudou", async () => {
+    const refri = await createOrder(db, {
+      customerName: "Ricardo",
+      paymentMethod: "PAY_LATER",
+      lines: [{ productId: fx.refri.id, quantity: 1 }],
+    });
+    const pizza = await createOrder(db, {
+      customerName: "Ricardo",
+      paymentMethod: "PAY_LATER",
+      lines: [{ productId: fx.pizza.id, quantity: 1 }],
+    });
+
+    await settlePayments(db, { orderIds: [pizza.id], method: "PIX" });
+    // A tela ainda mostrava os dois pedidos: nenhum é quitado e o usuário confere de novo.
+    await expect(settlePayments(db, { orderIds: [refri.id, pizza.id], method: "CASH" })).rejects.toThrow(
+      /A conta mudou/,
+    );
+    expect(await accountBalanceCents(db, refri.customerId!)).toBe(500);
+
+    await settlePayments(db, { orderIds: [refri.id], method: "CASH" });
+    expect(await listPendingAccounts(db)).toEqual([]);
+    expect((await getEventReport(db, fx.event.id))?.settlements).toEqual({ pixCents: 750, cashCents: 500, count: 2 });
   });
 });
 

@@ -51,7 +51,6 @@ export async function listEvents(db: PrismaClient, take = 60): Promise<EventSumm
 export type PendingPayment = {
   id: string;
   number: number;
-  customerName: string;
   totalCents: number;
   createdAt: string;
   eventName: string;
@@ -59,41 +58,73 @@ export type PendingPayment = {
   summary: string;
 };
 
+/** Conta de fiado: todos os pedidos em aberto da mesma pessoa. */
+export type PendingAccount = {
+  customerId: string;
+  name: string;
+  totalCents: number;
+  orders: PendingPayment[];
+};
+
 const PENDING_PAY_LATER = { paymentMethod: "PAY_LATER", paymentStatus: "PENDING", ...NOT_CANCELED } as const;
 
-export async function listPendingPayments(db: PrismaClient): Promise<PendingPayment[]> {
+export async function listPendingAccounts(db: PrismaClient): Promise<PendingAccount[]> {
   const orders = await db.order.findMany({
     where: PENDING_PAY_LATER,
-    include: { event: true, items: true },
-    orderBy: [{ customerName: "asc" }, { createdAt: "asc" }],
+    include: { event: true, items: true, customer: true },
+    orderBy: { createdAt: "asc" },
   });
-  return orders.map((order) => ({
-    id: order.id,
-    number: order.number,
-    customerName: order.customerName,
-    totalCents: toCents(order.total),
-    createdAt: order.createdAt.toISOString(),
-    eventName: order.event.name,
-    eventDate: isoDate(order.event.date),
-    summary: order.items.map((item) => `${item.quantity}x ${item.description}`).join(", "),
-  }));
+  const accounts = new Map<string, PendingAccount>();
+  for (const order of orders) {
+    const customer = order.customer!;
+    const account = accounts.get(customer.id) ?? {
+      customerId: customer.id,
+      name: customer.name,
+      totalCents: 0,
+      orders: [],
+    };
+    const totalCents = toCents(order.total);
+    account.totalCents += totalCents;
+    account.orders.push({
+      id: order.id,
+      number: order.number,
+      totalCents,
+      createdAt: order.createdAt.toISOString(),
+      eventName: order.event.name,
+      eventDate: isoDate(order.event.date),
+      summary: order.items.map((item) => `${item.quantity}x ${item.description}`).join(", "),
+    });
+    accounts.set(customer.id, account);
+  }
+  return [...accounts.values()].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
 }
 
 export async function pendingPaymentsTotal(db: PrismaClient) {
-  const result = await db.order.aggregate({ where: PENDING_PAY_LATER, _sum: { total: true }, _count: true });
-  return { count: result._count, totalCents: toCents(result._sum.total ?? 0) };
+  const rows = await db.order.groupBy({
+    by: ["customerId"],
+    where: PENDING_PAY_LATER,
+    _sum: { total: true },
+    _count: true,
+  });
+  return {
+    accounts: rows.length,
+    count: rows.reduce((sum, row) => sum + row._count, 0),
+    totalCents: rows.reduce((sum, row) => sum + toCents(row._sum.total ?? 0), 0),
+  };
 }
 
 /**
- * Quita um pedido "pagar depois". O valor entra no caixa do evento aberto no momento
- * da quitação (se houver), que é onde o dinheiro fisicamente está.
+ * Quita pedidos "pagar depois" (um pedido ou a conta inteira). O valor entra no caixa do
+ * evento aberto no momento da quitação (se houver), que é onde o dinheiro fisicamente está.
+ * Tudo ou nada: se algum pedido já foi quitado ou cancelado, nada é alterado.
  */
-export async function settlePayment(db: PrismaClient, rawInput: SettleInput, settledById?: string) {
-  const { orderId, method } = settleSchema.parse(rawInput);
+export async function settlePayments(db: PrismaClient, rawInput: SettleInput, settledById?: string) {
+  const { method, ...input } = settleSchema.parse(rawInput);
+  const orderIds = [...new Set(input.orderIds)];
   await db.$transaction(async (tx) => {
     const event = await tx.event.findFirst({ where: { status: "OPEN" }, select: { id: true } });
     const { count } = await tx.order.updateMany({
-      where: { id: orderId, ...PENDING_PAY_LATER },
+      where: { id: { in: orderIds }, ...PENDING_PAY_LATER },
       data: {
         paymentStatus: "PAID",
         settledWith: method,
@@ -102,7 +133,9 @@ export async function settlePayment(db: PrismaClient, rawInput: SettleInput, set
         settledById,
       },
     });
-    if (count === 0) throw new DomainError("Pedido já quitado, cancelado ou inexistente.");
+    if (count !== orderIds.length) {
+      throw new DomainError("A conta mudou (pedido já quitado ou cancelado). Atualize a página e confira.");
+    }
   });
 }
 

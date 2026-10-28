@@ -21,6 +21,7 @@ import {
   getState as getPrinterState,
   reconnectPrinter,
 } from "@/lib/printer/bluetooth";
+import { formatBRL } from "@/lib/money";
 import { printReceipt } from "@/lib/printer/print";
 import type { ReceiptData } from "@/lib/receipt";
 import type { CounterSnapshot } from "@/server/counter/queries";
@@ -211,9 +212,16 @@ export function CounterApp({ snapshot, viewer }: { snapshot: CounterSnapshot; vi
           <NewOrder
             snapshot={snapshot}
             online={online}
-            onCreated={({ number, receipt }) =>
-              void print(receipt, `Pedido #${String(number).padStart(3, "0")} impresso.`)
-            }
+            onCreated={({ number, receipt, accountBalanceCents }) => {
+              const label = `Pedido #${String(number).padStart(3, "0")}`;
+              const account =
+                accountBalanceCents === null
+                  ? ""
+                  : ` Conta de ${receipt.customerName}: ${formatBRL(accountBalanceCents)} em aberto.`;
+              // Sem impressora o cupom abre na pré-visualização; o saldo da conta aparece mesmo assim.
+              if (account) setToast({ message: `${label} registrado.${account}` });
+              void print(receipt, `${label} impresso.${account}`);
+            }}
           />
         ) : (
           <OrdersList

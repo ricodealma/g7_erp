@@ -1,9 +1,10 @@
 "use client";
 
-import { Minus, Plus, Star, Trash2 } from "lucide-react";
+import { BookUser, Minus, Plus, Star, Trash2 } from "lucide-react";
 import { useMemo, useRef, useState, useTransition } from "react";
 
 import { priceCart } from "@/lib/combos";
+import { customerKey } from "@/lib/customer";
 import { formatBRL } from "@/lib/money";
 import type { ReceiptData } from "@/lib/receipt";
 import type { CounterProduct, CounterSnapshot } from "@/server/counter/queries";
@@ -71,7 +72,7 @@ export function NewOrder({
 }: {
   snapshot: CounterSnapshot;
   online: boolean;
-  onCreated: (order: { number: number; receipt: ReceiptData }) => void;
+  onCreated: (order: { number: number; receipt: ReceiptData; accountBalanceCents: number | null }) => void;
 }) {
   const [customerName, setCustomerName] = useState("");
   const [cart, setCart] = useState<Cart>({});
@@ -105,6 +106,12 @@ export function NewOrder({
   const received = parseCents(cashReceived);
   const change = received !== undefined ? received - priced.totalCents : undefined;
   const canSubmit = online && !pending && customerName.trim().length > 0 && lines.length > 0;
+
+  // Conta de fiado: o nome é único, então "Depois" com o mesmo nome soma na conta existente.
+  const nameKey = customerKey(customerName);
+  const account = nameKey ? snapshot.accounts.find((candidate) => candidate.key === nameKey) : undefined;
+  const suggestions =
+    nameKey && !account ? snapshot.accounts.filter((candidate) => candidate.key.includes(nameKey)).slice(0, 4) : [];
 
   function add(productId: string, delta: number) {
     setError(null);
@@ -194,6 +201,28 @@ export function NewOrder({
           enterKeyHint="done"
           aria-label="Nome do cliente"
         />
+
+        {suggestions.length > 0 && (
+          <div className="flex flex-wrap gap-2" aria-label="Contas de fiado">
+            {suggestions.map((candidate) => (
+              <Button
+                key={candidate.id}
+                variant="ghost"
+                className="!min-h-9 !px-3 text-sm"
+                onClick={() => setCustomerName(candidate.name)}
+              >
+                <BookUser size={16} /> {candidate.name} · {formatBRL(candidate.balanceCents)}
+              </Button>
+            ))}
+          </div>
+        )}
+        {account && (
+          <p className="rounded-xl bg-sky-50 px-3 py-2 text-sm text-sky-900 dark:bg-sky-500/10 dark:text-sky-200">
+            <span className="font-semibold">{account.name}</span> já deve {formatBRL(account.balanceCents)}. “Depois”
+            soma este pedido na mesma conta
+            {priced.totalCents > 0 && <> (total {formatBRL(account.balanceCents + priced.totalCents)})</>}.
+          </p>
+        )}
 
         {lines.length === 0 ? (
           <p className="py-6 text-center text-sm opacity-60">Toque nos produtos para adicionar.</p>

@@ -1,7 +1,7 @@
 import { connection } from "next/server";
 import { Suspense } from "react";
 
-import { listPendingPayments } from "@/server/admin/finance";
+import { listPendingAccounts } from "@/server/admin/finance";
 import { requireAdmin } from "@/server/auth";
 import { db } from "@/server/db";
 
@@ -11,7 +11,7 @@ import { PendingPayments } from "./pending-payments";
 async function Content() {
   await connection();
   await requireAdmin();
-  return <PendingPayments payments={await listPendingPayments(db)} />;
+  return <PendingPayments accounts={await listPendingAccounts(db)} />;
 }
 
 export default function PayLaterPage() {
@@ -19,7 +19,7 @@ export default function PayLaterPage() {
     <>
       <PageTitle
         title="Fiado"
-        description="Pedidos para pagar depois. Ao quitar, o valor entra no caixa do evento aberto."
+        description="Contas de quem pegou para pagar depois, somadas por pessoa. Ao quitar, o valor entra no caixa do evento aberto."
       />
       <Suspense fallback={<Loading />}>
         <Content />
