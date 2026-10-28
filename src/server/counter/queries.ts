@@ -33,7 +33,7 @@ export type CounterSnapshot = {
   event: { id: string; name: string; date: string } | null;
   settings: { pixKey: string; pixMerchant: string; pixCity: string };
   products: CounterProduct[];
-  combos: { id: string; name: string; priceCents: number; optionIds: string[] }[];
+  combos: { id: string; name: string; optionIds: string[] }[];
   orders: CounterOrder[];
   accounts: OpenAccount[];
 };
@@ -92,7 +92,6 @@ export async function getCounterSnapshot(db: PrismaClient): Promise<CounterSnaps
     combos: combos.map((combo) => ({
       id: combo.id,
       name: combo.name,
-      priceCents: toCents(combo.price),
       optionIds: combo.options.map((option) => option.productId),
     })),
     orders: orders.map((order) => ({

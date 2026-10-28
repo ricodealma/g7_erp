@@ -130,11 +130,10 @@ model Product {
   @@map("products")
 }
 
-/// Combo de preço fixo: 1 lanche + 1 bebida, escolhidos entre as opções permitidas.
+/// Combo: 1 lanche + 1 bebida entre as opções permitidas; preço = soma sem os centavos.
 model Combo {
   id        String   @id @default(uuid(7)) @db.Uuid
   name      String   @unique @db.VarChar(80)
-  price     Decimal  @db.Decimal(10, 2)
   active    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz

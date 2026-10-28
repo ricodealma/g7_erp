@@ -66,7 +66,7 @@ O ERP é uma solução Web App de alta performance e baixo custo, focada em otim
 * **[RF-06] Seleção de Bebidas e Combos:**
 * Atalhos para bebidas fixas (*Pitchulinha*, *Refri Lata*, *Suco*, *Água com gás*).
 * Montagem de **Combos Inteligentes** (1 Lanche do Dia + 1 Bebida Fixa).
-* **Preço do combo é fixo** e definido no cadastro, independente da soma dos itens — o objetivo é facilitar a venda e arredondar valores (ex: salgado R$ 7,00 + pitchulinha R$ 3,00 → combo R$ 10,00; salgado R$ 7,50 + refri R$ 3,00 → combo R$ 10,00).
+* **Preço do combo = soma do lanche e da bebida sem os centavos** — o objetivo é facilitar o troco (ex: pizza R$ 7,50 + refri R$ 5,00 = R$ 12,50 → combo R$ 12,00; salgado R$ 7,00 + suco R$ 4,50 = R$ 11,50 → combo R$ 11,00). Pares sem centavos (ex: R$ 7,00 + R$ 3,00) não têm desconto e são cobrados avulsos.
 * O cadastro do combo define quais lanches e quais bebidas podem compô-lo. Cada item do combo baixa o seu próprio estoque.
 
 
@@ -139,7 +139,7 @@ O ERP é uma solução Web App de alta performance e baixo custo, focada em otim
 
 
 * **[RF-16] Painel Administrativo (visível somente ao Admin):**
-* **Cadastros:** produtos (lanches e bebidas, preço, tipo de controle de estoque, limite crítico), combos (preço fixo e itens permitidos), eventos, usuários e configurações (chave Pix, nome no cabeçalho do cupom).
+* **Cadastros:** produtos (lanches e bebidas, preço, tipo de controle de estoque, limite crítico), combos (nome e itens permitidos; o preço vem dos itens), eventos, usuários e configurações (chave Pix, nome no cabeçalho do cupom).
 * **Dados financeiros:** vendas por evento, por forma de pagamento e por produto; lista de **pagamentos pendentes (fiado)** com quitação.
 * **Fechamento de caixa por evento:** total vendido por forma de pagamento, total de fiado em aberto, valor esperado em dinheiro × valor contado (com registro da diferença) e encerramento do evento.
 * **Regras adotadas na implementação:**

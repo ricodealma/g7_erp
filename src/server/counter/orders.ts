@@ -54,7 +54,6 @@ export async function createOrder(db: PrismaClient, rawInput: CreateOrderInput, 
       combos.map((combo) => ({
         id: combo.id,
         name: combo.name,
-        priceCents: toCents(combo.price),
         optionIds: new Set(combo.options.map((option) => option.productId)),
       })),
     );

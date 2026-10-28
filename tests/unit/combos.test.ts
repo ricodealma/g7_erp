@@ -8,6 +8,7 @@ const products = new Map<string, CatalogProduct>(
     { id: "pizza", name: "Pizza", category: "SNACK", priceCents: 750 },
     { id: "pitchula", name: "Pitchulinha", category: "DRINK", priceCents: 300 },
     { id: "refri", name: "Refri Lata", category: "DRINK", priceCents: 500 },
+    { id: "suco", name: "Suco", category: "DRINK", priceCents: 450 },
     { id: "agua", name: "Água", category: "DRINK", priceCents: 400 },
   ].map((product) => [product.id, product as CatalogProduct]),
 );
@@ -15,8 +16,7 @@ const products = new Map<string, CatalogProduct>(
 const combo: CatalogCombo = {
   id: "combo",
   name: "Combo",
-  priceCents: 1000,
-  optionIds: new Set(["salgado", "pizza", "pitchula", "refri"]),
+  optionIds: new Set(["salgado", "pizza", "pitchula", "refri", "suco"]),
 };
 
 describe("priceCart", () => {
@@ -29,7 +29,33 @@ describe("priceCart", () => {
     expect(result.savingsCents).toBe(0);
   });
 
-  it("aplica o combo para arredondar (7 + 3 = 10)", () => {
+  it("combo tira só os centavos da soma (7,50 + 5,00 = 12,00)", () => {
+    const result = priceCart(
+      [
+        { productId: "pizza", quantity: 1 },
+        { productId: "refri", quantity: 1 },
+      ],
+      products,
+      [combo],
+    );
+    expect(result.totalCents).toBe(1200);
+    expect(result.savingsCents).toBe(50);
+    expect(result.items).toEqual([
+      {
+        kind: "COMBO",
+        comboId: "combo",
+        description: "Combo",
+        quantity: 1,
+        unitPriceCents: 1200,
+        components: [
+          { productId: "pizza", description: "Pizza" },
+          { productId: "refri", description: "Refri Lata" },
+        ],
+      },
+    ]);
+  });
+
+  it("par sem centavos fica avulso (7,00 + 3,00 = 10,00)", () => {
     const result = priceCart(
       [
         { productId: "salgado", quantity: 1 },
@@ -39,65 +65,50 @@ describe("priceCart", () => {
       [combo],
     );
     expect(result.totalCents).toBe(1000);
-    expect(result.items).toHaveLength(1);
-    expect(result.items[0]).toMatchObject({ kind: "COMBO", quantity: 1, unitPriceCents: 1000 });
+    expect(result.items.every((item) => item.kind === "PRODUCT")).toBe(true);
   });
 
-  it("prioriza a bebida que gera maior economia e cobra o restante avulso", () => {
+  it("escolhe a bebida que gera centavos para tirar e cobra o restante avulso", () => {
     const result = priceCart(
       [
-        { productId: "pizza", quantity: 1 },
-        { productId: "pitchula", quantity: 1 },
+        { productId: "salgado", quantity: 1 },
         { productId: "refri", quantity: 1 },
+        { productId: "suco", quantity: 1 },
       ],
       products,
       [combo],
     );
-    // Pizza 7,50 + Refri 5,00 = 12,50 -> combo 10,00; Pitchulinha avulsa 3,00.
-    expect(result.totalCents).toBe(1300);
-    expect(result.savingsCents).toBe(250);
+    // Salgado 7,00 + Suco 4,50 = 11,50 -> combo 11,00; Refri avulso 5,00.
+    expect(result.totalCents).toBe(1600);
+    expect(result.savingsCents).toBe(50);
     const comboItem = result.items.find((item) => item.kind === "COMBO");
-    expect(comboItem?.kind === "COMBO" && comboItem.components.map((c) => c.productId)).toEqual(["pizza", "refri"]);
+    expect(comboItem?.kind === "COMBO" && comboItem.components.map((c) => c.productId)).toEqual(["salgado", "suco"]);
   });
 
   it("agrupa combos idênticos em quantidade", () => {
     const result = priceCart(
       [
-        { productId: "salgado", quantity: 3 },
+        { productId: "pizza", quantity: 3 },
         { productId: "refri", quantity: 3 },
       ],
       products,
       [combo],
     );
     expect(result.items).toHaveLength(1);
-    expect(result.items[0]).toMatchObject({ kind: "COMBO", quantity: 3 });
-    expect(result.totalCents).toBe(3000);
+    expect(result.items[0]).toMatchObject({ kind: "COMBO", quantity: 3, unitPriceCents: 1200 });
+    expect(result.totalCents).toBe(3600);
   });
 
   it("ignora bebida não permitida no combo", () => {
     const result = priceCart(
       [
-        { productId: "salgado", quantity: 1 },
+        { productId: "pizza", quantity: 1 },
         { productId: "agua", quantity: 1 },
       ],
       products,
       [combo],
     );
-    expect(result.totalCents).toBe(1100);
-    expect(result.items.every((item) => item.kind === "PRODUCT")).toBe(true);
-  });
-
-  it("nunca aplica combo mais caro que a soma avulsa", () => {
-    const expensive = { ...combo, priceCents: 2000 };
-    const result = priceCart(
-      [
-        { productId: "salgado", quantity: 1 },
-        { productId: "pitchula", quantity: 1 },
-      ],
-      products,
-      [expensive],
-    );
-    expect(result.totalCents).toBe(1000);
+    expect(result.totalCents).toBe(1150);
     expect(result.items.every((item) => item.kind === "PRODUCT")).toBe(true);
   });
 

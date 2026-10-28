@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { Button, Dialog, Field, inputClass } from "@/components/ui";
 import { ErrorText, useAction } from "@/components/use-action";
-import { formatBRL, parseCents } from "@/lib/money";
+import { formatBRL } from "@/lib/money";
 import type { AdminCombo, AdminProduct } from "@/server/admin/catalog";
 
 import { saveComboAction } from "../actions";
@@ -20,9 +20,8 @@ function ComboForm({
   products: AdminProduct[];
   onDone: () => void;
 }) {
-  const { pending, error, setError, run } = useAction();
+  const { pending, error, run } = useAction();
   const [name, setName] = useState(combo?.name ?? "");
-  const [price, setPrice] = useState(combo ? formatBRL(combo.priceCents) : "");
   const [optionIds, setOptionIds] = useState<string[]>(combo?.optionIds ?? []);
   const [active, setActive] = useState(combo?.active ?? true);
 
@@ -31,26 +30,18 @@ function ComboForm({
   }
 
   function submit() {
-    const priceCents = parseCents(price);
-    if (priceCents === null) return setError("Preço inválido.");
-    run(() => saveComboAction({ id: combo?.id, name, priceCents, optionIds, active }), onDone);
+    run(() => saveComboAction({ id: combo?.id, name, optionIds, active }), onDone);
   }
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
-        <Field label="Nome">
-          <input className={inputClass} value={name} maxLength={80} onChange={(event) => setName(event.target.value)} />
-        </Field>
-        <Field label="Preço fixo (R$)">
-          <input
-            className={inputClass}
-            inputMode="decimal"
-            value={price}
-            onChange={(event) => setPrice(event.target.value)}
-          />
-        </Field>
-      </div>
+      <Field label="Nome">
+        <input className={inputClass} value={name} maxLength={80} onChange={(event) => setName(event.target.value)} />
+      </Field>
+      <p className="text-xs opacity-60">
+        Preço: lanche + bebida sem os centavos (ex.: R$ 7,50 + R$ 5,00 = R$ 12,00). Pares sem centavos são cobrados
+        avulsos.
+      </p>
       {(["SNACK", "DRINK"] as const).map((category) => (
         <fieldset key={category} className="flex flex-col">
           <legend className="mb-1 text-sm font-medium">
@@ -82,7 +73,7 @@ function ComboForm({
         Ativo
       </label>
       <ErrorText error={error} />
-      <Button variant="primary" disabled={pending || !name.trim() || !price} onClick={submit}>
+      <Button variant="primary" disabled={pending || !name.trim()} onClick={submit}>
         {pending ? "Salvando…" : "Salvar"}
       </Button>
     </div>
@@ -106,7 +97,7 @@ export function CombosManager({ combos, products }: { combos: AdminCombo[]; prod
           <li key={combo.id} className={`flex items-center gap-3 py-3 ${combo.active ? "" : "opacity-50"}`}>
             <div className="min-w-0 flex-1">
               <p className="font-medium">
-                {combo.name} <span className="tabular-nums">{formatBRL(combo.priceCents)}</span>
+                {combo.name}
                 {!combo.active && <span className="ml-2 text-xs">(inativo)</span>}
               </p>
               <p className="text-xs opacity-60">{combo.optionIds.map((id) => names.get(id)).join(", ")}</p>

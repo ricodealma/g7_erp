@@ -31,7 +31,6 @@ export const stockCountSchema = z.object({ productId: id, quantity });
 
 export const comboSchema = z.object({
   name: name(80),
-  priceCents: cents,
   optionIds: z.array(id).min(2, "Escolha ao menos um lanche e uma bebida"),
   active: z.boolean().default(true),
 });

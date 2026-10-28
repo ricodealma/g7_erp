@@ -63,9 +63,9 @@ describe("fiado e fechamento de caixa", () => {
     });
     await cancelOrder(db, canceled.id);
 
-    expect(await pendingPaymentsTotal(db)).toEqual({ accounts: 1, count: 1, totalCents: 1000 });
+    expect(await pendingPaymentsTotal(db)).toEqual({ accounts: 1, count: 1, totalCents: 1200 });
     const [pending] = await listPendingAccounts(db);
-    expect(pending).toMatchObject({ name: "Caio", totalCents: 1000, orders: [{ eventName: "Culto Teste" }] });
+    expect(pending).toMatchObject({ name: "Caio", totalCents: 1200, orders: [{ eventName: "Culto Teste" }] });
 
     await settlePayments(db, { orderIds: [fiado.id], method: "CASH" });
     await expect(settlePayments(db, { orderIds: [fiado.id], method: "PIX" })).rejects.toBeInstanceOf(DomainError);
@@ -76,24 +76,25 @@ describe("fiado e fechamento de caixa", () => {
       orderCount: 3,
       canceledCount: 1,
       openOrderCount: 0,
-      totalCents: 2300,
-      byMethod: { PIX: 300, CASH: 1000, PAY_LATER_PAID: 1000, PAY_LATER_PENDING: 0 },
-      settlements: { cashCents: 1000, pixCents: 0, count: 1 },
-      // Venda em dinheiro (10,00) + fiado quitado em dinheiro (10,00); o cancelado não entra.
-      expectedCashCents: 2000,
+      totalCents: 2500,
+      byMethod: { PIX: 300, CASH: 1000, PAY_LATER_PAID: 1200, PAY_LATER_PENDING: 0 },
+      settlements: { cashCents: 1200, pixCents: 0, count: 1 },
+      // Venda em dinheiro (10,00) + fiado quitado em dinheiro (12,00); o cancelado não entra.
+      expectedCashCents: 2200,
     });
-    expect(report?.items.find((item) => item.combo)).toMatchObject({ quantity: 1, totalCents: 1000 });
+    // Pizza 7,50 + Refri 5,00 = 12,50 -> combo 12,00.
+    expect(report?.items.find((item) => item.combo)).toMatchObject({ quantity: 1, totalCents: 1200 });
     // Unidades somam avulsos e itens dentro do combo.
     expect(report?.units.find((unit) => unit.name === "Refri Lata")?.quantity).toBe(3);
 
-    const closing = await closeEvent(db, { eventId: fx.event.id, countedCashCents: 1950, notes: "Faltou troco" });
-    expect(closing).toEqual({ expectedCashCents: 2000, differenceCents: -50 });
+    const closing = await closeEvent(db, { eventId: fx.event.id, countedCashCents: 2150, notes: "Faltou troco" });
+    expect(closing).toEqual({ expectedCashCents: 2200, differenceCents: -50 });
     await expect(closeEvent(db, { eventId: fx.event.id, countedCashCents: 0 })).rejects.toThrow(/já encerrado/);
 
     const [summary] = await listEvents(db);
-    expect(summary).toMatchObject({ status: "CLOSED", orderCount: 3, totalCents: 2300, cashDifferenceCents: -50 });
+    expect(summary).toMatchObject({ status: "CLOSED", orderCount: 3, totalCents: 2500, cashDifferenceCents: -50 });
     expect((await getEventReport(db, fx.event.id))?.event).toMatchObject({
-      countedCashCents: 1950,
+      countedCashCents: 2150,
       closingNotes: "Faltou troco",
     });
   });
@@ -234,24 +235,21 @@ describe("cadastros", () => {
   });
 
   it("combo exige lanche e bebida e substitui as opções na edição", async () => {
-    await expect(
-      saveCombo(db, { name: "Só bebidas", priceCents: 700, optionIds: [fx.refri.id, fx.pitchula.id] }),
-    ).rejects.toThrow(/lanche e uma bebida/);
+    await expect(saveCombo(db, { name: "Só bebidas", optionIds: [fx.refri.id, fx.pitchula.id] })).rejects.toThrow(
+      /lanche e uma bebida/,
+    );
 
     const { id } = await saveCombo(db, {
       name: "Combo Macarrão",
-      priceCents: 1400,
       optionIds: [fx.macarrao.id, fx.refri.id],
     });
     await saveCombo(db, {
       id,
       name: "Combo Macarrão",
-      priceCents: 1300,
       optionIds: [fx.macarrao.id, fx.pitchula.id],
       active: false,
     });
     const combo = await db.combo.findUniqueOrThrow({ where: { id }, include: { options: true } });
-    expect(combo.price.toString()).toBe("13");
     expect(combo.active).toBe(false);
     expect(combo.options.map((option) => option.productId).sort()).toEqual([fx.macarrao.id, fx.pitchula.id].sort());
   });

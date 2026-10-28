@@ -92,7 +92,7 @@ async function main() {
   const combo = await db.combo.upsert({
     where: { name: "Combo Lanche do Dia" },
     update: {},
-    create: { name: "Combo Lanche do Dia", price: "10.00" },
+    create: { name: "Combo Lanche do Dia" },
   });
 
   await db.comboOption.createMany({

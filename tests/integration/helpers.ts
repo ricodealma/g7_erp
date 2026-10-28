@@ -72,7 +72,6 @@ export async function seedFixtures(db: PrismaClient) {
   const combo = await db.combo.create({
     data: {
       name: "Combo Lanche do Dia",
-      price: "10.00",
       options: { create: [pizza, pernil, refri, pitchula].map((product) => ({ productId: product.id })) },
     },
   });

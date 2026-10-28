@@ -46,8 +46,8 @@ describe("createOrder", () => {
       where: { id: first.id },
       include: { items: { include: { components: true } }, stockMovements: true },
     });
-    // Pizza + Refri -> combo 10,00; Refri avulso 5,00.
-    expect(order.total.toString()).toBe("15");
+    // Pizza 7,50 + Refri 5,00 -> combo 12,00 (sem os centavos); Refri avulso 5,00.
+    expect(order.total.toString()).toBe("17");
     expect(order.paymentStatus).toBe("PAID");
     expect(order.items.find((item) => item.kind === "COMBO")?.components).toHaveLength(2);
     expect(await stockOf(fx.pizza.id)).toBe(4);
@@ -55,7 +55,7 @@ describe("createOrder", () => {
     expect(order.stockMovements.map((movement) => movement.quantity).sort()).toEqual([-1, -2]);
 
     const receipt = await getReceiptData(db, first.id);
-    expect(receipt).toMatchObject({ number: 1, header: "CANTINA TESTE", totalCents: 1500, notes: "Sem maionese" });
+    expect(receipt).toMatchObject({ number: 1, header: "CANTINA TESTE", totalCents: 1700, notes: "Sem maionese" });
   });
 
   it("recusa estoque insuficiente sem alterar nada (transação atômica)", async () => {

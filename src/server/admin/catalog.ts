@@ -147,7 +147,7 @@ export async function setStockCount(
 
 // ------------------------------------------------------------------ Combos
 
-export type AdminCombo = { id: string; name: string; priceCents: number; optionIds: string[]; active: boolean };
+export type AdminCombo = { id: string; name: string; optionIds: string[]; active: boolean };
 
 export async function listCombos(db: PrismaClient): Promise<AdminCombo[]> {
   const combos = await db.combo.findMany({
@@ -157,7 +157,6 @@ export async function listCombos(db: PrismaClient): Promise<AdminCombo[]> {
   return combos.map((combo) => ({
     id: combo.id,
     name: combo.name,
-    priceCents: toCents(combo.price),
     optionIds: combo.options.map((option) => option.productId),
     active: combo.active,
   }));
@@ -173,11 +172,11 @@ async function validateComboOptions(db: Prisma.TransactionClient, optionIds: str
   }
 }
 
-/** Cria (sem id) ou edita um combo de preço fixo (RF-16). */
+/** Cria (sem id) ou edita um combo (RF-16). O preço vem dos itens: soma sem os centavos. */
 export async function saveCombo(db: PrismaClient, rawInput: ComboInput & { id?: string }) {
   const input = comboSchema.parse(rawInput);
   const optionIds = [...new Set(input.optionIds)];
-  const data = { name: input.name, price: fromCents(input.priceCents), active: input.active };
+  const data = { name: input.name, active: input.active };
 
   return db.$transaction(async (tx) => {
     await validateComboOptions(tx, optionIds);

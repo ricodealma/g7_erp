@@ -10,7 +10,6 @@ export type CatalogProduct = {
 export type CatalogCombo = {
   id: string;
   name: string;
-  priceCents: Cents;
   /** Produtos (lanches e bebidas) permitidos no combo. */
   optionIds: ReadonlySet<string>;
 };
@@ -43,10 +42,15 @@ export type PricedCart = {
   savingsCents: Cents;
 };
 
+/** Preço do combo: soma do lanche e da bebida sem os centavos (12,50 -> 12,00). */
+export function comboPriceCents(snack: CatalogProduct, drink: CatalogProduct): Cents {
+  return Math.floor((snack.priceCents + drink.priceCents) / 100) * 100;
+}
+
 /**
  * Combos Inteligentes (RF-06): agrupa automaticamente 1 lanche + 1 bebida do carrinho
- * no combo de preço fixo permitido que gera maior economia. Itens que não formam combo
- * são cobrados avulsos. Combos cujo preço supera a soma avulsa nunca são aplicados.
+ * permitidos no combo, escolhendo o par que gera maior economia. Itens que não formam
+ * combo são cobrados avulsos; pares sem centavos (sem desconto) ficam avulsos.
  */
 export function priceCart(
   lines: readonly CartLine[],
@@ -80,8 +84,8 @@ export function priceCart(
     drinks.forEach((drink, drinkIndex) => {
       for (const combo of combos) {
         if (!combo.optionIds.has(snack.id) || !combo.optionIds.has(drink.id)) continue;
-        const savings = snack.priceCents + drink.priceCents - combo.priceCents;
-        if (savings < 0) continue;
+        const savings = snack.priceCents + drink.priceCents - comboPriceCents(snack, drink);
+        if (savings <= 0) continue;
         if (!best || savings > best.savings) best = { drinkIndex, combo, savings };
       }
     });
@@ -103,7 +107,7 @@ export function priceCart(
         comboId: best.combo.id,
         description: best.combo.name,
         quantity: 1,
-        unitPriceCents: best.combo.priceCents,
+        unitPriceCents: comboPriceCents(snack, drink),
         components: [
           { productId: snack.id, description: snack.name },
           { productId: drink.id, description: drink.name },
